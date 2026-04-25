@@ -2,11 +2,33 @@ package net.fernyam.chaosmania;
 
 import net.neoforged.neoforge.common.ModConfigSpec;
 
-// An example config class. This is not required, but it's a good idea to have one to keep your config organized.
-// Demonstrates how to use Neo's config APIs
 public class ConfigMod {
-    private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
 
-    static final ModConfigSpec SPEC = BUILDER.build();
+    public static final ModConfigSpec.BooleanValue DISABLE_ANIMAL_BREEDING;
+    public static final ModConfigSpec.BooleanValue DISABLE_SEED_PLANTING;
+    public static final ModConfigSpec.BooleanValue DISABLE_VILLAGER_TRADING; // Новая настройка
 
+    public static final ModConfigSpec SPEC;
+
+    static {
+        ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
+
+        BUILDER.comment("Gameplay Settings").push("gameplay");
+
+        DISABLE_ANIMAL_BREEDING = BUILDER
+                .comment("Запретить размножение животных")
+                .define("disableAnimalBreeding", true);
+
+        DISABLE_SEED_PLANTING = BUILDER
+                .comment("Запретить посадку семян")
+                .define("disableSeedPlanting", true);
+
+        DISABLE_VILLAGER_TRADING = BUILDER
+                .comment("Запретить торговлю с жителями")
+                .define("disableVillagerTrading", true); // По умолчанию включено
+
+        BUILDER.pop();
+
+        SPEC = BUILDER.build();
+    }
 }
