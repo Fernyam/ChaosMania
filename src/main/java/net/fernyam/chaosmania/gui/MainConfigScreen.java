@@ -3,18 +3,22 @@ package net.fernyam.chaosmania.gui;
 import net.fernyam.chaosmania.ConfigMod;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.NotNull;
 
-public class ConfigScreen extends Screen {
+import java.util.ArrayList;
+import java.util.List;
+
+public class MainConfigScreen extends Screen {
     private final Screen parentScreen;
 
     // Константы для кнопок
     private static final int BUTTON_WIDTH = 200;
-    private static final int BUTTON_HEIGHT = 30;
-    private static final int BUTTON_SPACING = 15;
+    private static final int BUTTON_HEIGHT = 28;
+    private static final int BUTTON_SPACING = 10;
 
     // Компоненты
     private Button breedingButton;
@@ -22,9 +26,11 @@ public class ConfigScreen extends Screen {
     private Button tradingButton;
     private Button pickupButon;
 
+    private EditBox textField;
+
     private StringWidget statusLabel;
 
-    public ConfigScreen(Screen parentScreen) {
+    public MainConfigScreen(Screen parentScreen) {
         super(Component.literal("ChaosMania Configuration"));
         this.parentScreen = parentScreen;
     }
@@ -34,7 +40,7 @@ public class ConfigScreen extends Screen {
         super.init();
 
         int centerX = this.width / 2;
-        int startY = this.height / 6;
+        int startY = this.height / 8;
 
         // Кнопка для кормления/размножения животных
         // Кнопка 1: Размножение
@@ -72,6 +78,30 @@ public class ConfigScreen extends Screen {
                 BUTTON_WIDTH,
                 BUTTON_HEIGHT).build());
 
+
+        int textFieldY = startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 4;
+
+        textField = new EditBox(
+                this.font,                           // шрифт
+                centerX - 100,                       // x
+                textFieldY,                          // y
+                200,                                 // ширина
+                20,                                  // высота
+                Component.literal("Текстовое поле")  // подсказка
+        );
+
+        // Настройка текстового поля
+        textField.setMaxLength(100);                    // максимальная длина текста
+        textField.setValue("");                         // начальное значение (пусто)
+        textField.setHint(Component.literal("Введите текст...")); // подсказка внутри поля
+
+
+
+
+        this.addRenderableWidget(textField);
+
+
+
         // Статус текст
         statusLabel = new StringWidget(
                 centerX - 150,
@@ -92,6 +122,49 @@ public class ConfigScreen extends Screen {
         ).bounds(centerX - 75, this.height - 40, 150, 20).build());
 
     }
+
+
+    private void onTextChanged(String newText) {
+        // Очищаем текст от лишних пробелов
+        String recipeId = newText.trim().toLowerCase();
+
+        // Проверяем, что ID не пустой
+        if (recipeId.isEmpty()) {
+            showStatusMessage("§cВведите ID рецепта!");
+            return;
+        }
+
+        // Проверяем формат (должен быть namespace:path)
+        if (!recipeId.contains(":")) {
+            recipeId = "minecraft:" + recipeId;
+        }
+
+        // Получаем текущий список
+        List<? extends String> currentList = ConfigMod.FORBIDDEN_RECIPES.get();
+
+        // Создаём изменяемый список
+        List<String> newList = new ArrayList<>(currentList);
+
+        // Проверяем, есть ли уже такой рецепт
+        if (newList.contains(recipeId)) {
+            showStatusMessage("§cРецепт уже в списке!");
+            return;
+        }
+
+        // Добавляем
+        newList.add(recipeId);
+
+        // Сохраняем
+        ConfigMod.FORBIDDEN_RECIPES.set(newList);
+        ConfigMod.SPEC.save();
+
+        showStatusMessage("§aРецепт добавлен: " + recipeId);
+
+        // Очищаем поле
+        textField.setValue("");
+    }
+
+
 
     private Component getBreedingButtonText() {
         boolean enabled = ConfigMod.DISABLE_ANIMAL_BREEDING.get();
@@ -194,5 +267,20 @@ public class ConfigScreen extends Screen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        // Enter нажат
+        if (keyCode == 257 || keyCode == 335) {
+            if (textField != null && textField.isFocused()) {
+                onTextChanged(textField.getValue()); // ← ТОЛЬКО ПО ENTER
+                textField.setFocused(false);
+                return true;
+            }
+        }
+
+        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 }
