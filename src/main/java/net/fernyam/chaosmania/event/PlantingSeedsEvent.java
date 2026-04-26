@@ -30,9 +30,12 @@ public class PlantingSeedsEvent
         ItemStack itemStack = event.getItemStack();
         BlockState targetBlock = event.getLevel().getBlockState(event.getPos());
 
-        if (targetBlock.is(Blocks.FARMLAND) && itemStack.is(C_SEEDS)) {
-            event.setCanceled(true);
-            event.setCancellationResult(net.minecraft.world.InteractionResult.FAIL);
+        if(!itemStack.isEmpty() && !targetBlock.isEmpty())
+        {
+            if (targetBlock.is(Blocks.FARMLAND) && itemStack.is(C_SEEDS)) {
+                event.setCanceled(true);
+                event.setCancellationResult(net.minecraft.world.InteractionResult.FAIL);
+            }
         }
     }
 
