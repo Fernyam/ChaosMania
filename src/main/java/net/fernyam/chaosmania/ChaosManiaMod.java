@@ -1,7 +1,7 @@
 package net.fernyam.chaosmania;
 
 import net.fernyam.chaosmania.event.*;
-import net.fernyam.chaosmania.gui.ConfigScreen;
+import net.fernyam.chaosmania.gui.MainConfigScreen;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
@@ -28,7 +28,7 @@ public class ChaosManiaMod {
         // Регистрация экрана конфигурации (для клиента)
         if (Dist.CLIENT.isClient()) {
             modContainer.registerExtensionPoint(IConfigScreenFactory.class,
-                    (container, screen) -> new ConfigScreen(screen));
+                    (container, screen) -> new MainConfigScreen(screen));
         }
 
         // События
@@ -40,7 +40,12 @@ public class ChaosManiaMod {
 
         NeoForge.EVENT_BUS.addListener(ItemPickupEvent::onItemPickupPre);
 
-        NeoForge.EVENT_BUS.addListener(ItemCraftingEvent::onServerAboutToStart);
+        NeoForge.EVENT_BUS.addListener(ItemDropsEvent::onItemToss);
+
+        //NeoForge.EVENT_BUS.addListener(ItemCraftingEvent::onServerAboutToStart);
+
+        NeoForge.EVENT_BUS.addListener(BlockPlaceEvent::onBlockPlace);
+        NeoForge.EVENT_BUS.addListener(BlockBreakEvent::onBlockBreak);
 
         // Регистрация клиентских событий
         modEventBus.addListener(this::onClientSetup);

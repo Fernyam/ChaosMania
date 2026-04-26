@@ -1,37 +1,20 @@
 package net.fernyam.chaosmania.gui;
 
-import net.fernyam.chaosmania.ConfigMod;
+import net.fernyam.chaosmania.gui.custom.*;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import org.jetbrains.annotations.NotNull;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class MainConfigScreen extends Screen {
     private final Screen parentScreen;
 
-    // Константы для кнопок
     private static final int BUTTON_WIDTH = 200;
-    private static final int BUTTON_HEIGHT = 28;
-    private static final int BUTTON_SPACING = 10;
-
-    // Компоненты
-    private Button breedingButton;
-    private Button plantingButton;
-    private Button tradingButton;
-    private Button pickupButon;
-
-    private EditBox textField;
-
-    private StringWidget statusLabel;
+    private static final int BUTTON_HEIGHT = 20;
+    private static final int BUTTON_SPACING = 20;
 
     public MainConfigScreen(Screen parentScreen) {
-        super(Component.literal("ChaosMania Configuration"));
+        super(Component.literal("§6ChaosMania §7- Главное меню"));
         this.parentScreen = parentScreen;
     }
 
@@ -42,245 +25,71 @@ public class MainConfigScreen extends Screen {
         int centerX = this.width / 2;
         int startY = this.height / 8;
 
-        // Кнопка для кормления/размножения животных
-        // Кнопка 1: Размножение
-        breedingButton = addRenderableWidget(Button.builder(
-                getBreedingButtonText(),
-                button -> toggleBreeding()
-        ).bounds(centerX - BUTTON_WIDTH / 2,
-                startY,                                                   // ← 1-я кнопка
-                BUTTON_WIDTH,
-                BUTTON_HEIGHT).build());
+        // Кнопка: Настройки животных
+        this.addRenderableWidget(Button.builder(
+                Component.literal("§e🐾 Животные"),
+                button -> this.minecraft.setScreen(new AnimalConfigScreen(this))
+        ).bounds(centerX - BUTTON_WIDTH / 2, startY, BUTTON_WIDTH, BUTTON_HEIGHT).build());
 
-// Кнопка 2: Посадка семян
-        plantingButton = addRenderableWidget(Button.builder(
-                getPlantingButtonText(),
-                button -> togglePlanting()
-        ).bounds(centerX - BUTTON_WIDTH / 2,
-                startY + BUTTON_HEIGHT + BUTTON_SPACING,                  // ← 2-я кнопка
-                BUTTON_WIDTH,
-                BUTTON_HEIGHT).build());
+        // Кнопка: Настройки фермерства
+        this.addRenderableWidget(Button.builder(
+                Component.literal("§a🌾 Фермерство"),
+                button -> this.minecraft.setScreen(new FarmingConfigScreen(this))
+        ).bounds(centerX - BUTTON_WIDTH / 2, startY + BUTTON_HEIGHT + BUTTON_SPACING, BUTTON_WIDTH, BUTTON_HEIGHT).build());
 
-// Кнопка 3: Торговля с жителями
-        tradingButton = addRenderableWidget(Button.builder(
-                getTradingText(),
-                button -> toggleTrading()
-        ).bounds(centerX - BUTTON_WIDTH / 2,
-                startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 2,            // ← 3-я кнопка (без +10!)
-                BUTTON_WIDTH,
-                BUTTON_HEIGHT).build());
+        // Кнопка: Настройки торговли
+        this.addRenderableWidget(Button.builder(
+                Component.literal("§6💰 Торговля"),
+                button -> this.minecraft.setScreen(new TradingConfigScreen(this))
+        ).bounds(centerX - BUTTON_WIDTH / 2, startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 2, BUTTON_WIDTH, BUTTON_HEIGHT).build());
 
-        pickupButon = addRenderableWidget(Button.builder(
-                getPickingText(),
-                button -> togglePickup()
-        ).bounds(centerX - BUTTON_WIDTH / 2,
-                startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 3,
-                BUTTON_WIDTH,
-                BUTTON_HEIGHT).build());
+        this.addRenderableWidget(Button.builder(
+                Component.literal("§6⬜ Блоки"),
+                button -> this.minecraft.setScreen(new BlockConfigScreen(this))
+        ).bounds(centerX - BUTTON_WIDTH / 2, startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 3, BUTTON_WIDTH, BUTTON_HEIGHT).build());
 
+        this.addRenderableWidget(Button.builder(
+                Component.literal("§6\uD83D\uDC8E Предметы"),
+                button -> this.minecraft.setScreen(new ItemConfigScreen(this))
+        ).bounds(centerX - BUTTON_WIDTH / 2, startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 4, BUTTON_WIDTH, BUTTON_HEIGHT).build());
 
-        int textFieldY = startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 4;
+        // Кнопка: Запрещённые рецепты
+//        this.addRenderableWidget(Button.builder(
+//                Component.literal("§c📖 Запрещённые рецепты"),
+//                button -> this.minecraft.setScreen(new RecipesConfigScreen(this))
+//        ).bounds(centerX - BUTTON_WIDTH / 2, startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 3, BUTTON_WIDTH, BUTTON_HEIGHT).build());
 
-        textField = new EditBox(
-                this.font,                           // шрифт
-                centerX - 100,                       // x
-                textFieldY,                          // y
-                200,                                 // ширина
-                20,                                  // высота
-                Component.literal("Текстовое поле")  // подсказка
-        );
-
-        // Настройка текстового поля
-        textField.setMaxLength(100);                    // максимальная длина текста
-        textField.setValue("");                         // начальное значение (пусто)
-        textField.setHint(Component.literal("Введите текст...")); // подсказка внутри поля
-
-
-
-
-        this.addRenderableWidget(textField);
-
-
-
-        // Статус текст
-        statusLabel = new StringWidget(
-                centerX - 150,
-                startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 2 + 20,
-                300,
-                25,
-                Component.literal("Настройки сохранены!"),
-                this.font
-        );
-        statusLabel.active = false;
-        statusLabel.visible = false;
-        addRenderableWidget(statusLabel);
-
-        // Кнопка закрытия
-        addRenderableWidget(Button.builder(
+        // Кнопка: Закрыть
+        this.addRenderableWidget(Button.builder(
                 Component.literal("Закрыть"),
-                button -> onClose()
-        ).bounds(centerX - 75, this.height - 40, 150, 20).build());
-
-    }
-
-
-    private void onTextChanged(String newText) {
-        // Очищаем текст от лишних пробелов
-        String recipeId = newText.trim().toLowerCase();
-
-        // Проверяем, что ID не пустой
-        if (recipeId.isEmpty()) {
-            showStatusMessage("§cВведите ID рецепта!");
-            return;
-        }
-
-        // Проверяем формат (должен быть namespace:path)
-        if (!recipeId.contains(":")) {
-            recipeId = "minecraft:" + recipeId;
-        }
-
-        // Получаем текущий список
-        List<? extends String> currentList = ConfigMod.FORBIDDEN_RECIPES.get();
-
-        // Создаём изменяемый список
-        List<String> newList = new ArrayList<>(currentList);
-
-        // Проверяем, есть ли уже такой рецепт
-        if (newList.contains(recipeId)) {
-            showStatusMessage("§cРецепт уже в списке!");
-            return;
-        }
-
-        // Добавляем
-        newList.add(recipeId);
-
-        // Сохраняем
-        ConfigMod.FORBIDDEN_RECIPES.set(newList);
-        ConfigMod.SPEC.save();
-
-        showStatusMessage("§aРецепт добавлен: " + recipeId);
-
-        // Очищаем поле
-        textField.setValue("");
-    }
-
-
-
-    private Component getBreedingButtonText() {
-        boolean enabled = ConfigMod.DISABLE_ANIMAL_BREEDING.get();
-        return enabled ?
-                Component.literal(" Запретить размножение (ВКЛ)") :
-                Component.literal(" Разрешить размножение (ВЫКЛ)");
-    }
-
-    private Component getPlantingButtonText() {
-        boolean enabled = ConfigMod.DISABLE_SEED_PLANTING.get();
-        return enabled ?
-                Component.literal(" Запретить посадку семян (ВКЛ)") :
-                Component.literal(" Разрешить посадку семян (ВЫКЛ)");
-    }
-
-    private Component getTradingText() {
-        boolean enabled = ConfigMod.DISABLE_VILLAGER_TRADING.get();
-        return enabled ?
-                Component.literal(" Запретить торговлю (ВКЛ)") :
-                Component.literal(" Разрешить торговлю (ВЫКЛ)");
-    }
-
-    private Component getPickingText() {
-        boolean enabled = ConfigMod.DISABLE_PICKUP_ITEM.get();
-        return enabled ?
-                Component.literal(" Запретить подбирать предметы (ВКЛ)") :
-                Component.literal(" Разрешить подбирать предметы (ВЫКЛ)");
-    }
-
-    private void toggleBreeding() {
-        boolean currentValue = ConfigMod.DISABLE_ANIMAL_BREEDING.get();
-        ConfigMod.DISABLE_ANIMAL_BREEDING.set(!currentValue);
-        ConfigMod.SPEC.save();
-
-        // Обновляем текст кнопки
-        breedingButton.setMessage(getBreedingButtonText());
-        showStatusMessage("Размножение " + (!currentValue ? "запрещено" : "разрешено"));
-    }
-
-    private void togglePlanting() {
-        boolean currentValue = ConfigMod.DISABLE_SEED_PLANTING.get();
-        ConfigMod.DISABLE_SEED_PLANTING.set(!currentValue);
-        ConfigMod.SPEC.save();
-
-        // Обновляем текст кнопки
-        plantingButton.setMessage(getPlantingButtonText());
-        showStatusMessage("Торговля " + (!currentValue ? "запрещена" : "разрешена"));
-    }
-
-    private void toggleTrading() {
-        boolean currentValue = ConfigMod.DISABLE_VILLAGER_TRADING.get();
-        ConfigMod.DISABLE_VILLAGER_TRADING.set(!currentValue);
-        ConfigMod.SPEC.save();
-        tradingButton.setMessage(getPickingText());
-        showStatusMessage(" Торговля с жителями " + (!currentValue ? "запрещена" : "разрешена"));
-    }
-
-    private void togglePickup() {
-        boolean currentValue = ConfigMod.DISABLE_PICKUP_ITEM.get();
-        ConfigMod.DISABLE_PICKUP_ITEM.set(!currentValue);
-        ConfigMod.SPEC.save();
-        pickupButon.setMessage(getTradingText());
-        showStatusMessage(" Подбор предметов " + (!currentValue ? "запрещен" : "разрешён"));
-    }
-
-    private void showStatusMessage(String message) {
-        statusLabel.setMessage(Component.literal("✓ " + message));
-        statusLabel.visible = true;
-
-        // Скрываем сообщение через 2 секунды
-        new Thread(() -> {
-            try {
-                Thread.sleep(2000);
-                statusLabel.visible = false;
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }).start();
+                button -> this.onClose()
+        ).bounds(centerX - BUTTON_WIDTH / 2, this.height - 40, BUTTON_WIDTH, BUTTON_HEIGHT).build());
     }
 
     @Override
-    public void render(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
-        super.render(guiGraphics, mouseX, mouseY, partialTick);
 
         // Заголовок
-        guiGraphics.drawString(this.font, this.title, this.width / 2 - this.font.width(this.title) / 2, 20, 0xFFFFFF, true);
+        guiGraphics.drawString(
+                this.font,
+                this.title,
+                this.width / 2 - this.font.width(this.title) / 2,
+                20,
+                0xFFFFFF,
+                true
+        );
 
-
+        super.render(guiGraphics, mouseX, mouseY, partialTick);
     }
 
     @Override
     public void onClose() {
-        if(this.minecraft != null)
-        {
-            this.minecraft.setScreen(parentScreen);
-        }
+        this.minecraft.setScreen(parentScreen);
     }
 
     @Override
     public boolean isPauseScreen() {
         return false;
-    }
-
-
-    @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        // Enter нажат
-        if (keyCode == 257 || keyCode == 335) {
-            if (textField != null && textField.isFocused()) {
-                onTextChanged(textField.getValue()); // ← ТОЛЬКО ПО ENTER
-                textField.setFocused(false);
-                return true;
-            }
-        }
-
-        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 }

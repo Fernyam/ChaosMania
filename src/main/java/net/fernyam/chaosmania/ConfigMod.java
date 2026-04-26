@@ -9,13 +9,18 @@ public class ConfigMod {
 
     public static final ModConfigSpec.BooleanValue DISABLE_ANIMAL_BREEDING;
     public static final ModConfigSpec.BooleanValue DISABLE_SEED_PLANTING;
-    public static final ModConfigSpec.BooleanValue DISABLE_VILLAGER_TRADING; // Новая настройка
+    public static final ModConfigSpec.BooleanValue DISABLE_VILLAGER_TRADING;
     public static final ModConfigSpec.BooleanValue DISABLE_PICKUP_ITEM;
+    public static final ModConfigSpec.BooleanValue DISABLE_WANDER_TRADING;
+    public static final ModConfigSpec.BooleanValue DISABLE_BREAK_BLOCK;
+    public static final ModConfigSpec.BooleanValue DISABLE_PLACE_BLOCK;
+    public static final ModConfigSpec.BooleanValue DISABLE_ITEM_DROPS;
 
     // Список запрещённых рецептов (можно будет менять через конфиг)
     public static final ModConfigSpec.ConfigValue<List<? extends String>> FORBIDDEN_RECIPES;
 
     public static final ModConfigSpec SPEC;
+
 
 
     static {
@@ -35,9 +40,27 @@ public class ConfigMod {
                 .comment("Запретить торговлю с жителями")
                 .define("disableVillagerTrading", true);
 
+        DISABLE_WANDER_TRADING = BUILDER
+                .comment("Запретить торговлю с торговцами")
+                .define("disableWanderTrading", true);
+
         DISABLE_PICKUP_ITEM = BUILDER
                 .comment("Запретить подбирать предметы")
                         .define("disablePickupItem" , true);
+
+        DISABLE_ITEM_DROPS = BUILDER
+                .comment("Запретить выбрасывать предметы")
+                .define("disableItemDrops" , true);
+
+        DISABLE_BREAK_BLOCK = BUILDER
+                .comment("Запретить ломать блок")
+                .define("disablePickupItem" , true);
+
+        DISABLE_PLACE_BLOCK = BUILDER
+                .comment("Запретить устанавливать блок")
+                .define("disablePickupItem" , true);
+
+
 
         FORBIDDEN_RECIPES = BUILDER
                 .comment("Список ID рецептов, которые нужно запретить")
