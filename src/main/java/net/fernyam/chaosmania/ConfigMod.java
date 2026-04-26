@@ -3,6 +3,8 @@ package net.fernyam.chaosmania;
 import com.mojang.datafixers.TypeRewriteRule;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
+import java.util.List;
+
 public class ConfigMod {
 
     public static final ModConfigSpec.BooleanValue DISABLE_ANIMAL_BREEDING;
@@ -10,7 +12,11 @@ public class ConfigMod {
     public static final ModConfigSpec.BooleanValue DISABLE_VILLAGER_TRADING; // Новая настройка
     public static final ModConfigSpec.BooleanValue DISABLE_PICKUP_ITEM;
 
+    // Список запрещённых рецептов (можно будет менять через конфиг)
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> FORBIDDEN_RECIPES;
+
     public static final ModConfigSpec SPEC;
+
 
     static {
         ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
@@ -32,6 +38,16 @@ public class ConfigMod {
         DISABLE_PICKUP_ITEM = BUILDER
                 .comment("Запретить подбирать предметы")
                         .define("disablePickupItem" , true);
+
+        FORBIDDEN_RECIPES = BUILDER
+                .comment("Список ID рецептов, которые нужно запретить")
+                .defineListAllowEmpty("forbiddenRecipes",
+                        List.of(
+                                "minecraft:diamond_sword",
+                                "minecraft:diamond_pickaxe",
+                                "minecraft:golden_apple"
+                        ),
+                        entry -> entry instanceof String);
 
 
         BUILDER.pop();
