@@ -1,5 +1,6 @@
 package net.fernyam.chaosmania.event;
 import net.fernyam.chaosmania.ChaosManiaMod;
+import net.fernyam.chaosmania.ConfigMod;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
@@ -26,7 +27,7 @@ public class ItemCraftingEvent
 
         // Удаляем ненужные рецепты
         List<RecipeHolder<?>> filteredRecipes = allRecipes.stream()
-                .filter(recipe -> !isForbiddenRecipe(recipe))
+                .filter(recipe -> !isRecipeForbidden(recipe))
                 .toList();
 
         // Применяем отфильтрованные рецепты
@@ -36,12 +37,11 @@ public class ItemCraftingEvent
                 allRecipes.size() - filteredRecipes.size());
     }
 
-    private static boolean isForbiddenRecipe(RecipeHolder<?> recipe) {
-        ResourceLocation id = recipe.id();
+    private static boolean isRecipeForbidden(RecipeHolder<?> recipe) {
+        ResourceLocation recipeId = recipe.id();
 
-        // Запрещаем конкретные рецепты по ID
-        // Примеры (в ванилле элитр нет, но есть другие):
-        return id.equals(ResourceLocation.parse("minecraft:diamond_sword")) ||
-                id.equals(ResourceLocation.parse("minecraft:golden_apple"));
+        // Проверяем по списку из конфига
+        List<? extends String> forbidden = ConfigMod.FORBIDDEN_RECIPES.get();
+        return forbidden.contains(recipeId.toString());
     }
 }
