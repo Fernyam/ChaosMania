@@ -1,8 +1,6 @@
 package net.fernyam.chaosmania;
 
-import net.fernyam.chaosmania.event.AnimalReproductionEvent;
-import net.fernyam.chaosmania.event.PlantingSeedsEvent;
-import net.fernyam.chaosmania.event.VillagerTradingEvent;
+import net.fernyam.chaosmania.event.*;
 import net.fernyam.chaosmania.gui.ConfigScreen;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.ModContainer;
@@ -34,12 +32,15 @@ public class ChaosManiaMod {
         }
 
         // События
-        NeoForge.EVENT_BUS.addListener(PlantingSeedsEvent::onRightClickBlock)
-        ;
+        NeoForge.EVENT_BUS.addListener(PlantingSeedsEvent::onRightClickBlock);
         NeoForge.EVENT_BUS.addListener(AnimalReproductionEvent::onEntityInteract);
 
         NeoForge.EVENT_BUS.addListener(VillagerTradingEvent::onEntityInteract);
         NeoForge.EVENT_BUS.addListener(VillagerTradingEvent::onPlayerTick);
+
+        NeoForge.EVENT_BUS.addListener(ItemPickupEvent::onItemPickupPre);
+
+        NeoForge.EVENT_BUS.addListener(ItemCraftingEvent::onServerAboutToStart);
 
         // Регистрация клиентских событий
         modEventBus.addListener(this::onClientSetup);

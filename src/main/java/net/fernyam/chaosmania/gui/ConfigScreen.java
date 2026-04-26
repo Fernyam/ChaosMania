@@ -14,12 +14,13 @@ public class ConfigScreen extends Screen {
     // Константы для кнопок
     private static final int BUTTON_WIDTH = 200;
     private static final int BUTTON_HEIGHT = 30;
-    private static final int BUTTON_SPACING = 20;
+    private static final int BUTTON_SPACING = 15;
 
     // Компоненты
     private Button breedingButton;
     private Button plantingButton;
     private Button tradingButton;
+    private Button pickupButon;
 
     private StringWidget statusLabel;
 
@@ -33,7 +34,7 @@ public class ConfigScreen extends Screen {
         super.init();
 
         int centerX = this.width / 2;
-        int startY = this.height / 4;
+        int startY = this.height / 6;
 
         // Кнопка для кормления/размножения животных
         // Кнопка 1: Размножение
@@ -60,6 +61,14 @@ public class ConfigScreen extends Screen {
                 button -> toggleTrading()
         ).bounds(centerX - BUTTON_WIDTH / 2,
                 startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 2,            // ← 3-я кнопка (без +10!)
+                BUTTON_WIDTH,
+                BUTTON_HEIGHT).build());
+
+        pickupButon = addRenderableWidget(Button.builder(
+                getPickingText(),
+                button -> togglePickup()
+        ).bounds(centerX - BUTTON_WIDTH / 2,
+                startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 3,
                 BUTTON_WIDTH,
                 BUTTON_HEIGHT).build());
 
@@ -105,6 +114,13 @@ public class ConfigScreen extends Screen {
                 Component.literal(" Разрешить торговлю (ВЫКЛ)");
     }
 
+    private Component getPickingText() {
+        boolean enabled = ConfigMod.DISABLE_PICKUP_ITEM.get();
+        return enabled ?
+                Component.literal(" Запретить подбирать предметы (ВКЛ)") :
+                Component.literal(" Разрешить подбирать предметы (ВЫКЛ)");
+    }
+
     private void toggleBreeding() {
         boolean currentValue = ConfigMod.DISABLE_ANIMAL_BREEDING.get();
         ConfigMod.DISABLE_ANIMAL_BREEDING.set(!currentValue);
@@ -129,8 +145,16 @@ public class ConfigScreen extends Screen {
         boolean currentValue = ConfigMod.DISABLE_VILLAGER_TRADING.get();
         ConfigMod.DISABLE_VILLAGER_TRADING.set(!currentValue);
         ConfigMod.SPEC.save();
-        tradingButton.setMessage(getTradingText());
+        tradingButton.setMessage(getPickingText());
         showStatusMessage(" Торговля с жителями " + (!currentValue ? "запрещена" : "разрешена"));
+    }
+
+    private void togglePickup() {
+        boolean currentValue = ConfigMod.DISABLE_PICKUP_ITEM.get();
+        ConfigMod.DISABLE_PICKUP_ITEM.set(!currentValue);
+        ConfigMod.SPEC.save();
+        pickupButon.setMessage(getTradingText());
+        showStatusMessage(" Подбор предметов " + (!currentValue ? "запрещен" : "разрешён"));
     }
 
     private void showStatusMessage(String message) {

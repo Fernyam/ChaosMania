@@ -1,5 +1,6 @@
 package net.fernyam.chaosmania;
 
+import com.mojang.datafixers.TypeRewriteRule;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 public class ConfigMod {
@@ -7,6 +8,7 @@ public class ConfigMod {
     public static final ModConfigSpec.BooleanValue DISABLE_ANIMAL_BREEDING;
     public static final ModConfigSpec.BooleanValue DISABLE_SEED_PLANTING;
     public static final ModConfigSpec.BooleanValue DISABLE_VILLAGER_TRADING; // Новая настройка
+    public static final ModConfigSpec.BooleanValue DISABLE_PICKUP_ITEM;
 
     public static final ModConfigSpec SPEC;
 
@@ -25,7 +27,12 @@ public class ConfigMod {
 
         DISABLE_VILLAGER_TRADING = BUILDER
                 .comment("Запретить торговлю с жителями")
-                .define("disableVillagerTrading", true); // По умолчанию включено
+                .define("disableVillagerTrading", true);
+
+        DISABLE_PICKUP_ITEM = BUILDER
+                .comment("Запретить подбирать предметы")
+                        .define("disablePickupItem" , true);
+
 
         BUILDER.pop();
 
