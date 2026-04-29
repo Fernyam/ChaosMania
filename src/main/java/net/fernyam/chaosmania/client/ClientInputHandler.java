@@ -2,6 +2,7 @@ package net.fernyam.chaosmania.client;
 
 import net.fernyam.chaosmania.gui.LoggingScreen;
 
+import net.fernyam.chaosmania.gui.custom.AllBlocksScreen;
 import net.neoforged.bus.api.SubscribeEvent;
 
 import net.neoforged.neoforge.client.event.ClientTickEvent;
@@ -26,7 +27,7 @@ public class ClientInputHandler {
         Minecraft mc = Minecraft.getInstance();
 
         // Создаём твой LoggingScreen, передаём текущий экран как parent
-        LoggingScreen screen = new LoggingScreen(mc.screen);
+        AllBlocksScreen screen = new AllBlocksScreen();
 
         // Открываем экран
         mc.setScreen(screen);
