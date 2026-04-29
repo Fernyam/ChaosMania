@@ -1,7 +1,13 @@
 package net.fernyam.chaosmania;
 
+import net.fernyam.chaosmania.client.ClientInputHandler;
+import net.fernyam.chaosmania.client.KeyBindings;
 import net.fernyam.chaosmania.event.*;
+import net.fernyam.chaosmania.gui.LoggingScreen;
 import net.fernyam.chaosmania.gui.MainConfigScreen;
+import net.fernyam.chaosmania.gui.custom.AllBlocksScreen;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.entity.player.Player;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
@@ -10,6 +16,7 @@ import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
@@ -28,8 +35,13 @@ public class ChaosManiaMod {
         // Регистрация экрана конфигурации (для клиента)
         if (Dist.CLIENT.isClient()) {
             modContainer.registerExtensionPoint(IConfigScreenFactory.class,
-                    (container, screen) -> new MainConfigScreen(screen));
+                    (container, screen) -> new AllBlocksScreen());
+
         }
+
+        //Клиент
+        modEventBus.addListener(KeyBindings::registerBindings);
+        NeoForge.EVENT_BUS.addListener(ClientInputHandler::onClientTick);
 
         // События
         NeoForge.EVENT_BUS.addListener(PlantingSeedsEvent::onRightClickBlock);
@@ -64,4 +76,31 @@ public class ChaosManiaMod {
     public void onServerStarting(ServerStartingEvent event) {
         LOGGER.info("ChaosMania сервер инициализирован");
     }
+
+//    @SubscribeEvent
+//    public void onPlayerJoinWorld(EntityJoinLevelEvent event) {
+//        // Проверяем, что это клиент, сущность - игрок, и мы уже в игре
+//        if (!event.getLevel().isClientSide()) {
+//            return;
+//        }
+//
+//        if (!(event.getEntity() instanceof Player player)) {
+//            return;
+//        }
+//
+//        // Проверяем, что это локальный игрок (не какой-то другой игрок на сервере)
+//        if (player != Minecraft.getInstance().player) {
+//            return;
+//        }
+//
+//        // Открываем GUI только один раз (опционально)
+//
+//
+//            // Откладываем открытие на 1 тик, чтобы мир полностью загрузился
+//            Minecraft.getInstance().execute(() -> {
+//                Minecraft.getInstance().setScreen(new AllBlocksScreen());
+//            });
+//
+//    }
+
 }
