@@ -1,6 +1,7 @@
 package net.fernyam.chaosmania.gui.custom;
 
-import net.minecraft.client.Minecraft;
+import net.fernyam.chaosmania.ConfigMod;
+import net.fernyam.chaosmania.data.JSONSettingCreate;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -12,24 +13,32 @@ import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.players.PlayerList;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.jetbrains.annotations.NotNull;
+import org.openjdk.nashorn.internal.scripts.JO;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static net.fernyam.chaosmania.ChaosManiaMod.MOD_ID;
+import static net.fernyam.chaosmania.data.JSONSettingCreate.*;
 
 public class AllBlocksScreen extends Screen {
+
     private static final ResourceLocation BACKGROUND_TEXTURE = ResourceLocation.fromNamespaceAndPath(MOD_ID, "textures/gui/bg.png");
     private static final int LIST_WIDTH = 200;
+    private static UUID uuidSelectedPlayer;
 
     private ScrollingPlayerList playerList;      // Слева - игроки
     private ScrollingBlockList blockList;        // Справа - блоки (появляется после выбора игрока)
@@ -242,8 +251,21 @@ public class AllBlocksScreen extends Screen {
         // Если выбрана запись "ВСЕМ", сохраняем специальное значение
         if (playerName.equals("§6§l[ ВСЕМ ]")) {
             this.selectedPlayerName = "ALL_PLAYERS";
+            uuidSelectedPlayer = UUID.fromString(All_UUID_PLAYER);
         } else {
             this.selectedPlayerName = playerName;
+
+            assert ServerLifecycleHooks.getCurrentServer() != null;
+            PlayerList playersList = ServerLifecycleHooks.getCurrentServer().getPlayerList();
+            ServerPlayer player = playersList.getPlayerByName(playerName);
+            if(player != null)
+            {
+                uuidSelectedPlayer = player.getUUID();
+            }
+            else
+            {
+                UUID.fromString(All_UUID_PLAYER);
+            }
         }
         this.showBlockList = true;
 
@@ -451,32 +473,29 @@ public class AllBlocksScreen extends Screen {
             // Первая кнопка (например, "Выдать")
             private void onFirstButtonClick() {
                 playClickSound();
+
+//                List<String> list = new ArrayList<>(ConfigMod.DONT_PLACE_BLOCK_LIST.get());
+//                list.add(BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString());
+//                ConfigMod.DONT_PLACE_BLOCK_LIST.set(list);
+
+
                 if (parent.minecraft != null && parent.minecraft.player != null) {
-                    if (parent.selectedPlayerName != null && parent.selectedPlayerName.equals("ALL_PLAYERS")) {
-                        parent.minecraft.player.displayClientMessage(
-                                Component.literal("§7[§6Блок§7] §f" + block.getName() + " §7будет выдан §lВСЕМ ИГРОКАМ"),
-                                false
-                        );
-                        System.out.println("Выдать блок " + block.getName() + " ВСЕМ ИГРОКАМ");
-                    } else {
-                        parent.minecraft.player.displayClientMessage(
-                                Component.literal("§7[§6Блок§7] §f" + block.getName() + " §7для игрока §e" + parent.selectedPlayerName),
-                                false
-                        );
-                        System.out.println("Выдать блок " + block.getName() + " игроку " + parent.selectedPlayerName);
-                    }
+                    ElementToDontPlaceBlock(uuidSelectedPlayer, block.getBlock());
+
                 }
+
+
+
+//                ConfigMod.SPEC.save();
+
             }
 
-            // Вторая кнопка (например, "Информация")
+
             private void onSecondButtonClick() {
                 playClickSound();
                 if (parent.minecraft != null && parent.minecraft.player != null) {
-                    parent.minecraft.player.displayClientMessage(
-                            Component.literal("§7[§6Блок§7] §f" + block.getName() + " §7- ID: §e" + BuiltInRegistries.BLOCK.getKey(block.getBlock())),
-                            false
-                    );
-                    System.out.println("Информация о блоке: " + block.getName());
+                    ElementToDontBreakBlock(uuidSelectedPlayer, block.getBlock());
+
                 }
             }
 
@@ -521,36 +540,49 @@ public class AllBlocksScreen extends Screen {
                 currentButton2X = button2X;
                 currentButton2Y = buttonY;
 
-                // Первая кнопка (зелёная - выдать)
-                guiGraphics.fill(button1X, buttonY, button1X + buttonWidth, buttonY + buttonHeight, 0xFF226622);
-                guiGraphics.fill(button1X + 1, buttonY + 1, button1X + buttonWidth - 1, buttonY + buttonHeight - 1, 0xFF33AA33);
+                // Первая кнопка
+                if(JSONSettingCreate.IsElementInDontPlaceBlockList(uuidSelectedPlayer , block.getBlock()))
+                {
+                    guiGraphics.fill(button1X, buttonY, button1X + buttonWidth, buttonY + buttonHeight, 0xFF701825);
+                    guiGraphics.fill(button1X + 1, buttonY + 1, button1X + buttonWidth - 1, buttonY + buttonHeight - 1, 0xFF701825);
+                }
+                else
+                {
+                    guiGraphics.fill(button1X, buttonY, button1X + buttonWidth, buttonY + buttonHeight, 0xFF226622);
+                    guiGraphics.fill(button1X + 1, buttonY + 1, button1X + buttonWidth - 1, buttonY + buttonHeight - 1, 0xFF226622);
+                }
 
-                // Иконка для первой кнопки (стрелка вниз)
+
                 int centerX = button1X + buttonWidth / 2;
                 int centerY = buttonY + buttonHeight / 2;
                 guiGraphics.fill(centerX - 6, centerY - 1, centerX + 6, centerY + 1, 0xFFFFFF);
                 guiGraphics.fill(centerX - 1, centerY - 4, centerX + 1, centerY + 4, 0xFFFFFF);
 
-                // Вторая кнопка (синяя - информация)
-                guiGraphics.fill(button2X, buttonY, button2X + buttonWidth, buttonY + buttonHeight, 0xFF222266);
-                guiGraphics.fill(button2X + 1, buttonY + 1, button2X + buttonWidth - 1, buttonY + buttonHeight - 1, 0xFF3333AA);
+                // Вторая кнопка
+                if(JSONSettingCreate.IsElementInDontBreakBlockList(uuidSelectedPlayer , block.getBlock())) {
+                    guiGraphics.fill(button2X, buttonY, button2X + buttonWidth, buttonY + buttonHeight, 0xFF701825);
+                    guiGraphics.fill(button2X + 1, buttonY + 1, button2X + buttonWidth - 1, buttonY + buttonHeight - 1, 0xFF701825);
+                }
+                else
+                {
+                    guiGraphics.fill(button2X, buttonY, button2X + buttonWidth, buttonY + buttonHeight, 0xFF226622);
+                    guiGraphics.fill(button2X + 1, buttonY + 1, button2X + buttonWidth - 1, buttonY + buttonHeight - 1, 0xFF226622 );
+                }
 
-                // Иконка для второй кнопки (буква i)
-                guiGraphics.drawString(font, "i", centerX - 3, centerY - 7, 0xFFFFFF, false);
             }
 
             @Override
             public boolean mouseClicked(double mouseX, double mouseY, int button) {
                 int buttonSize = 28;
 
-                // Проверяем клик по первой кнопке (выдать)
+                // Проверяем клик по первой кнопке
                 if (mouseX >= currentButton1X && mouseX <= currentButton1X + buttonSize &&
                         mouseY >= currentButton1Y && mouseY <= currentButton1Y + buttonSize) {
                     onFirstButtonClick();
                     return true;
                 }
 
-                // Проверяем клик по второй кнопке (информация)
+                // Проверяем клик по второй кнопке
                 if (mouseX >= currentButton2X && mouseX <= currentButton2X + buttonSize &&
                         mouseY >= currentButton2Y && mouseY <= currentButton2Y + buttonSize) {
                     onSecondButtonClick();

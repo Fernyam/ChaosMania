@@ -19,10 +19,11 @@ import java.util.List;
 import java.util.UUID;
 
 public class JSONSettingCreate {
+    public static final String All_UUID_PLAYER = "00000000-0000-0000-0000-000000000000";
+
     private static final Logger LOGGER = LogManager.getLogger(ChaosManiaMod.MOD_ID);
-    // ИСПРАВЛЕНО: Используем FMLPaths вместо Minecraft.getInstance()
     private static final Path STORE_FILE = FMLPaths.GAMEDIR.get().resolve(
-            String.format("config/%s/block_store.json", ChaosManiaMod.MOD_ID)
+            String.format("config/%s/player_setting.json", ChaosManiaMod.MOD_ID)
     );
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -57,8 +58,8 @@ public class JSONSettingCreate {
         List<PlayerSettings> settings = new ArrayList<>();
 
         PlayerSettings defaultSettings = new PlayerSettings(
-                "Default",
-                "00000000-0000-0000-0000-000000000000",
+                "ALL_PLAYER",
+                All_UUID_PLAYER,
                 false,
                 false,
                 new ArrayList<>(),
@@ -147,15 +148,51 @@ public class JSONSettingCreate {
         if (playerSettings != null) {
             if(playerSettings.getDontPlaceBlockList().contains(BuiltInRegistries.BLOCK.getKey(block).toString()))
             {
-                playerSettings.RemoveElementToDontPlaceBlocList(block);
+                playerSettings.RemoveElementToDontPlaceBlockList(block);
             }
             else
             {
-                playerSettings.AddElementToDontPlaceBlocList(block);
+                playerSettings.AddElementToDontPlaceBlockList(block);
             }
             saveSettings(allSettings);
         }
     }
 
+    public static boolean IsElementInDontPlaceBlockList(UUID uuid, Block block)
+    {
+        List<PlayerSettings> allSettings = loadSettings();
+        PlayerSettings playerSettings = allSettings.stream()
+                .filter(settings -> settings.getUuidPlayer().equals(uuid.toString()))
+                .findFirst()
+                .orElse(null);
+        if (playerSettings != null)
+        {
+            if(playerSettings.getDontPlaceBlockList().contains(BuiltInRegistries.BLOCK.getKey(block).toString()))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static boolean IsElementInDontBreakBlockList(UUID uuid, Block block)
+    {
+        List<PlayerSettings> allSettings = loadSettings();
+        PlayerSettings playerSettings = allSettings.stream()
+                .filter(settings -> settings.getUuidPlayer().equals(uuid.toString()))
+                .findFirst()
+                .orElse(null);
+
+        if (playerSettings != null)
+        {
+            if(playerSettings.getDontBreakBlockList().contains(BuiltInRegistries.BLOCK.getKey(block).toString()))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
 }

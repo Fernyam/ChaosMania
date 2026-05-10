@@ -2,11 +2,13 @@ package net.fernyam.chaosmania;
 
 import net.fernyam.chaosmania.client.ClientInputHandler;
 import net.fernyam.chaosmania.client.KeyBindings;
+import net.fernyam.chaosmania.data.JSONSettingCreate;
 import net.fernyam.chaosmania.event.*;
 import net.fernyam.chaosmania.gui.LoggingScreen;
 import net.fernyam.chaosmania.gui.MainConfigScreen;
 import net.fernyam.chaosmania.gui.custom.AllBlocksScreen;
 import net.minecraft.client.Minecraft;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.ModContainer;
@@ -17,6 +19,7 @@ import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
@@ -59,6 +62,9 @@ public class ChaosManiaMod {
         NeoForge.EVENT_BUS.addListener(BlockPlaceEvent::onBlockPlace);
         NeoForge.EVENT_BUS.addListener(BlockBreakEvent::onBlockBreak);
 
+        NeoForge.EVENT_BUS.addListener(this::D);
+        NeoForge.EVENT_BUS.addListener(this::onEntityJoinLevel);
+
         // Регистрация клиентских событий
         modEventBus.addListener(this::onClientSetup);
     }
@@ -75,6 +81,13 @@ public class ChaosManiaMod {
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
         LOGGER.info("ChaosMania сервер инициализирован");
+    }
+
+
+
+    public void D(PlayerEvent.PlayerLoggedInEvent event)
+    {
+        JSONSettingCreate.createJSON();
     }
 
 //    @SubscribeEvent
@@ -102,5 +115,16 @@ public class ChaosManiaMod {
 //            });
 //
 //    }
+
+    public void onEntityJoinLevel(EntityJoinLevelEvent event) {
+
+        if (!event.getLevel().isClientSide() && event.getEntity() instanceof ServerPlayer player) {
+            JSONSettingCreate.addNewPlayer(
+                    player.getName().getString(),
+                    player.getUUID()
+            );
+        }
+    }
+
 
 }

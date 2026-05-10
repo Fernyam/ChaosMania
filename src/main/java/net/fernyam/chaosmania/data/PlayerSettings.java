@@ -9,10 +9,20 @@ import java.util.UUID;
 public class PlayerSettings {
     private String name;
     private String uuidPlayer;
+
     private boolean isDisablePlaceBlock;
     private boolean isDisableBreakBlock;
     private List<String> dontPlaceBlockList;
     private List<String> dontBreakBlockList;
+
+    private  boolean isDisableItemItemDrop;
+    private  boolean isDisableItemPickup;
+    private List<String> dontDropItemList;
+    private List<String> dontPuckupItemList;
+
+    private boolean isDisablePlantingSeed;
+    private boolean isDisableVillagerTrading;
+
 
     // Конструктор по умолчанию (нужен для Gson)
     public PlayerSettings() {}
@@ -70,12 +80,12 @@ public class PlayerSettings {
         dontBreakBlockList.remove(BuiltInRegistries.BLOCK.getKey(block).toString());
     }
 
-    public void AddElementToDontPlaceBlocList(Block block)
+    public void AddElementToDontPlaceBlockList(Block block)
     {
         dontPlaceBlockList.add(BuiltInRegistries.BLOCK.getKey(block).toString());
     }
 
-    public void RemoveElementToDontPlaceBlocList(Block block)
+    public void RemoveElementToDontPlaceBlockList(Block block)
     {
         dontPlaceBlockList.remove(BuiltInRegistries.BLOCK.getKey(block).toString());
     }
