@@ -5,7 +5,6 @@ import com.google.gson.GsonBuilder;
 import net.fernyam.chaosmania.ChaosManiaMod;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.neoforged.fml.loading.FMLPaths;
 import org.apache.logging.log4j.LogManager;
@@ -285,6 +284,97 @@ public class JSONSettingCreate {
         return false;
     }
 
+    public static void IsDisablePlaceBlock(UUID uuid)
+    {
+        List<PlayerSettings> allSettings = loadSettings();
+        PlayerSettings playerSettings = allSettings.stream()
+                .filter(settings -> settings.getUuidPlayer().equals(uuid.toString()))
+                .findFirst()
+                .orElse(null);
+
+        if(playerSettings != null)
+        {
+            if(playerSettings.isDisablePlaceBlock())
+            {
+                playerSettings.setDisablePlaceBlock(false);
+            }
+            else
+            {
+                playerSettings.setDisablePlaceBlock(true);
+            }
+        }
+
+        saveSettings(allSettings);
+    }
+
+    public static void IsDisableBreakBlock(UUID uuid)
+    {
+        List<PlayerSettings> allSettings = loadSettings();
+        PlayerSettings playerSettings = allSettings.stream()
+                .filter(settings -> settings.getUuidPlayer().equals(uuid.toString()))
+                .findFirst()
+                .orElse(null);
+
+        if(playerSettings != null)
+        {
+            if(playerSettings.isDisableBreakBlock())
+            {
+                playerSettings.setDisableBreakBlock(false);
+            }
+            else
+            {
+                playerSettings.setDisableBreakBlock(true);
+            }
+        }
+
+        saveSettings(allSettings);
+    }
+
+    public static void IsDisableItemDrop(UUID uuid)
+    {
+        List<PlayerSettings> allSettings = loadSettings();
+        PlayerSettings playerSettings = allSettings.stream()
+                .filter(settings -> settings.getUuidPlayer().equals(uuid.toString()))
+                .findFirst()
+                .orElse(null);
+
+        if(playerSettings != null)
+        {
+            if(playerSettings.isDisableItemItemDrop())
+            {
+                playerSettings.setDisableItemItemDrop(false);
+            }
+            else
+            {
+                playerSettings.setDisableItemItemDrop(true);
+            }
+        }
+
+        saveSettings(allSettings);
+    }
+
+    public static void IsDisableItemPickup(UUID uuid)
+    {
+        List<PlayerSettings> allSettings = loadSettings();
+        PlayerSettings playerSettings = allSettings.stream()
+                .filter(settings -> settings.getUuidPlayer().equals(uuid.toString()))
+                .findFirst()
+                .orElse(null);
+
+        if(playerSettings != null)
+        {
+            if(playerSettings.isDisableItemPickup())
+            {
+                playerSettings.setDisableItemPickup(false);
+            }
+            else
+            {
+                playerSettings.setDisableItemPickup(true);
+            }
+        }
+
+        saveSettings(allSettings);
+    }
 
 
 }

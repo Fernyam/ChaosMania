@@ -136,7 +136,8 @@ public class AllBlocksScreen extends Screen {
         if(uuidSelectedPlayer != null  && !showBlockList && !isShowItemList)
         {
 
-            this.addRenderableWidget( Button.builder(Component.literal("Настройка блоков"),
+            this.addRenderableWidget( Button.builder(
+                    Component.literal("Настройка блоков"),
                     button -> {
                         showBlockList = true;
                         isShowItemList = false;
@@ -179,6 +180,17 @@ public class AllBlocksScreen extends Screen {
                     20,
                     Component.empty()
             );
+
+            this.addRenderableWidget(Button.builder(
+                    Component.literal("⚙"),
+                    button -> JSONSettingCreate.IsDisableBreakBlock(uuidSelectedPlayer)
+            ).bounds(leftListX + 400, 36, 17 , 17).build());
+
+            this.addRenderableWidget(Button.builder(
+                    Component.literal("⚙"),
+                    button -> JSONSettingCreate.IsDisablePlaceBlock(uuidSelectedPlayer)
+            ).bounds(leftListX + 375, 36, 17 , 17).build());
+
             this.searchBlockBox.setFocused(true);
             this.searchBlockBox.setCanLoseFocus(true);
             this.searchBlockBox.setMaxLength(50);
@@ -208,6 +220,17 @@ public class AllBlocksScreen extends Screen {
                     20,
                     Component.empty()
             );
+
+            this.addRenderableWidget(Button.builder(
+                    Component.literal("⚙"),
+                    button -> JSONSettingCreate.IsDisableItemDrop(uuidSelectedPlayer)
+            ).bounds(leftListX + 400, 36, 17 , 17).build());
+
+            this.addRenderableWidget(Button.builder(
+                    Component.literal("⚙"),
+                    button -> JSONSettingCreate.IsDisableItemPickup(uuidSelectedPlayer)
+            ).bounds(leftListX + 375, 36, 17 , 17).build());
+
             this.searchItemBox.setFocused(true);
             this.searchItemBox.setCanLoseFocus(true);
             this.searchItemBox.setMaxLength(50);
@@ -268,7 +291,7 @@ public class AllBlocksScreen extends Screen {
                 guiGraphics.drawString(
                         this.font,
                         Component.literal(blocksTitle),
-                        this.width / 2,
+                        this.width / 2 - 40,
                         40,
                         0xAAAAAA,
                         false
@@ -278,7 +301,7 @@ public class AllBlocksScreen extends Screen {
                 guiGraphics.drawString(
                         this.font,
                         Component.literal(itemsTitle),
-                        this.width / 2,
+                        this.width / 2 - 40,
                         40,
                         0xAAAAAA,
                         false
