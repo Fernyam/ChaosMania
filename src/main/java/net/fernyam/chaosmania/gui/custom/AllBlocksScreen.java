@@ -1,6 +1,5 @@
 package net.fernyam.chaosmania.gui.custom;
 
-import net.fernyam.chaosmania.ConfigMod;
 import net.fernyam.chaosmania.data.JSONSettingCreate;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -13,17 +12,15 @@ import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.players.PlayerList;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.jetbrains.annotations.NotNull;
-import org.openjdk.nashorn.internal.scripts.JO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,22 +35,32 @@ public class AllBlocksScreen extends Screen {
 
     private static final ResourceLocation BACKGROUND_TEXTURE = ResourceLocation.fromNamespaceAndPath(MOD_ID, "textures/gui/bg.png");
     private static final int LIST_WIDTH = 200;
-    private static UUID uuidSelectedPlayer;
+    private static final Logger log = LoggerFactory.getLogger(AllBlocksScreen.class);
+    private static UUID uuidSelectedPlayer = null;
 
     private ScrollingPlayerList playerList;      // Слева - игроки
-    private ScrollingBlockList blockList;        // Справа - блоки (появляется после выбора игрока)
+    private ScrollingBlockList blockList; // Справа - блоки (появляется после выбора игрока)
+    private ScrollingItemList itemList;
     private EditBox searchBlockBox;
+    private EditBox searchItemBox;
 
     private List<BlockEntry> allBlocks;
     private List<BlockEntry> filteredBlocks;
-    private String lastSearch = "";
+    private String lastBlockSearch = "";
 
-    private String selectedPlayerName = null;    // Выбранный игрок (или "ALL_PLAYERS")
+    private List<ItemEntry> allItems;
+    private List<ItemEntry> filteredItems;
+    private String lastItemSearch = "";
+
     private boolean showBlockList = false;       // Показывать ли список блоков
+    private boolean isShowItemList = false;      // Показывать ли список предметов
+
+
 
     public AllBlocksScreen() {
-        super(Component.literal("§6Все блоки в сборке"));
+        super(Component.literal("§Настройка игроков"));
         loadAllBlocks();
+        loadAllItems();
     }
 
     private void loadAllBlocks() {
@@ -68,6 +75,18 @@ public class AllBlocksScreen extends Screen {
 
         allBlocks.sort((a, b) -> a.getName().compareToIgnoreCase(b.getName()));
         filteredBlocks = new ArrayList<>(allBlocks);
+    }
+
+    private void loadAllItems() {
+        allItems = new ArrayList<>();
+
+        for (Item item : BuiltInRegistries.ITEM) {
+            if (item instanceof BlockItem) continue; // Пропускаем блоки, только предметы
+            allItems.add(new ItemEntry(new ItemStack(item)));
+        }
+
+        allItems.sort((a, b) -> a.getName().compareToIgnoreCase(b.getName()));
+        filteredItems = new ArrayList<>(allItems);
     }
 
     private List<String> getOnlinePlayers() {
@@ -94,6 +113,7 @@ public class AllBlocksScreen extends Screen {
     @Override
     protected void init() {
         super.init();
+        this.clearWidgets();
 
         int centerX = this.width / 2;
         int listY = 60;
@@ -113,12 +133,39 @@ public class AllBlocksScreen extends Screen {
                 this
         );
 
-        // Список блоков (справа) - появляется только после выбора игрока
+        if(uuidSelectedPlayer != null  && !showBlockList && !isShowItemList)
+        {
+
+            this.addRenderableWidget( Button.builder(Component.literal("Настройка блоков"),
+                    button -> {
+                        showBlockList = true;
+                        isShowItemList = false;
+                        init();
+                    }
+            ).bounds(leftListX + 180, this.height - 180, 200 , 20).build());
+
+            //В реализации
+            this.addRenderableWidget(Button.builder(
+                    Component.literal("Настройка предметов"),
+                    button -> {
+                        isShowItemList = true;
+                        showBlockList = false;
+                        init();
+                    }
+            ).bounds(leftListX + 180, this.height - 150, 200 , 20).build());
+
+            //Пока нет реализации
+            this.addRenderableWidget(Button.builder(
+                    Component.literal("Настройка возможностей"),
+                    button -> this.onClose()
+            ).bounds(leftListX + 180, this.height - 120, 200 , 20).build());
+        }
+
         if (showBlockList) {
             this.blockList = new ScrollingBlockList(
                     rightListX - 60,
                     listY,
-                    LIST_WIDTH + 50,
+                    LIST_WIDTH + 40,
                     listHeight,
                     this
             );
@@ -128,18 +175,49 @@ public class AllBlocksScreen extends Screen {
                     this.font,
                     rightListX - 60,
                     this.height - 35,
-                    LIST_WIDTH + 50,
+                    LIST_WIDTH + 40,
                     20,
                     Component.empty()
             );
             this.searchBlockBox.setFocused(true);
             this.searchBlockBox.setCanLoseFocus(true);
+            this.searchBlockBox.setMaxLength(50);
 
             // Обновляем список блоков
             blockList.updateEntries(filteredBlocks);
             this.addRenderableWidget(searchBlockBox);
             this.addRenderableWidget(blockList);
         }
+
+        if(isShowItemList)
+        {
+            this.itemList = new ScrollingItemList(
+                    rightListX - 60,
+                    listY,
+                    LIST_WIDTH + 40,
+                    listHeight,
+                    this
+            );
+
+            // Поле поиска для предметов
+            this.searchItemBox = new EditBox(
+                    this.font,
+                    rightListX - 60,
+                    this.height - 35,
+                    LIST_WIDTH + 40,
+                    20,
+                    Component.empty()
+            );
+            this.searchItemBox.setFocused(true);
+            this.searchItemBox.setCanLoseFocus(true);
+            this.searchItemBox.setMaxLength(50);
+
+            // Обновляем список предметов
+            itemList.updateEntries(filteredItems);
+            this.addRenderableWidget(searchItemBox);
+            this.addRenderableWidget(itemList);
+        }
+
 
         // Кнопка закрытия (по центру внизу)
         this.addRenderableWidget(Button.builder(
@@ -183,16 +261,24 @@ public class AllBlocksScreen extends Screen {
                 false
         );
 
-        // 5. Если выбран игрок - показываем информацию и надпись над списком блоков
-        if (selectedPlayerName != null) {
-
-            // Надпись "Список блоков" (справа)
+        // 5. Если выбран игрок - показываем информацию и надпись над списком
+        if (uuidSelectedPlayer != null) {
             if (showBlockList) {
                 String blocksTitle = "§lСписок блоков: §r" + filteredBlocks.size() + " / " + allBlocks.size();
                 guiGraphics.drawString(
                         this.font,
                         Component.literal(blocksTitle),
-                        this.width / 2 ,
+                        this.width / 2,
+                        40,
+                        0xAAAAAA,
+                        false
+                );
+            } else if (isShowItemList) {
+                String itemsTitle = "§lСписок предметов: §r" + filteredItems.size() + " / " + allItems.size();
+                guiGraphics.drawString(
+                        this.font,
+                        Component.literal(itemsTitle),
+                        this.width / 2,
                         40,
                         0xAAAAAA,
                         false
@@ -203,13 +289,24 @@ public class AllBlocksScreen extends Screen {
         // 6. Рисуем все виджеты
         super.render(guiGraphics, mouseX, mouseY, partialTick);
 
-        // 7. Подсказка в поле поиска (если оно видимо)
+        // 7. Подсказка в полях поиска
         if (showBlockList && searchBlockBox != null && !searchBlockBox.isFocused() && searchBlockBox.getValue().isEmpty()) {
             guiGraphics.drawString(
                     this.font,
                     "Поиск блоков...",
                     searchBlockBox.getX() + 4,
                     searchBlockBox.getY() + 6,
+                    0x888888,
+                    false
+            );
+        }
+
+        if (isShowItemList && searchItemBox != null && !searchItemBox.isFocused() && searchItemBox.getValue().isEmpty()) {
+            guiGraphics.drawString(
+                    this.font,
+                    "Поиск предметов...",
+                    searchItemBox.getX() + 4,
+                    searchItemBox.getY() + 6,
                     0x888888,
                     false
             );
@@ -225,19 +322,23 @@ public class AllBlocksScreen extends Screen {
     public void tick() {
         super.tick();
 
-        if (showBlockList && searchBlockBox != null && !searchBlockBox.getValue().equals(lastSearch)) {
-            updateSearch();
+        if (showBlockList && searchBlockBox != null && !searchBlockBox.getValue().equals(lastBlockSearch)) {
+            updateBlockSearch();
+        }
+
+        if (isShowItemList && searchItemBox != null && !searchItemBox.getValue().equals(lastItemSearch)) {
+            updateItemSearch();
         }
     }
 
-    private void updateSearch() {
-        lastSearch = searchBlockBox.getValue();
+    private void updateBlockSearch() {
+        lastBlockSearch = searchBlockBox.getValue();
 
-        if (lastSearch.isEmpty()) {
+        if (lastBlockSearch.isEmpty()) {
             filteredBlocks = new ArrayList<>(allBlocks);
         } else {
             filteredBlocks = allBlocks.stream()
-                    .filter(entry -> entry.getName().toLowerCase().contains(lastSearch.toLowerCase()))
+                    .filter(entry -> entry.getName().toLowerCase().contains(lastBlockSearch.toLowerCase()))
                     .collect(Collectors.toList());
         }
 
@@ -247,36 +348,47 @@ public class AllBlocksScreen extends Screen {
         }
     }
 
-    public void selectPlayer(String playerName) {
-        // Если выбрана запись "ВСЕМ", сохраняем специальное значение
+    private void updateItemSearch() {
+        lastItemSearch = searchItemBox.getValue();
+
+        if (lastItemSearch.isEmpty()) {
+            filteredItems = new ArrayList<>(allItems);
+        } else {
+            filteredItems = allItems.stream()
+                    .filter(entry -> entry.getName().toLowerCase().contains(lastItemSearch.toLowerCase()))
+                    .collect(Collectors.toList());
+        }
+
+        if (itemList != null) {
+            itemList.updateEntries(filteredItems);
+            itemList.setScrollAmount(0);
+        }
+    }
+
+    private void selectPlayer(String playerName) {
+        showBlockList = false;
+        isShowItemList = false;
+
         if (playerName.equals("§6§l[ ВСЕМ ]")) {
-            this.selectedPlayerName = "ALL_PLAYERS";
             uuidSelectedPlayer = UUID.fromString(All_UUID_PLAYER);
         } else {
-            this.selectedPlayerName = playerName;
-
-            assert ServerLifecycleHooks.getCurrentServer() != null;
-            PlayerList playersList = ServerLifecycleHooks.getCurrentServer().getPlayerList();
-            ServerPlayer player = playersList.getPlayerByName(playerName);
-            if(player != null)
-            {
-                uuidSelectedPlayer = player.getUUID();
-            }
-            else
-            {
-                UUID.fromString(All_UUID_PLAYER);
+            // На клиенте ищем по имени
+            if (minecraft != null && minecraft.getConnection() != null) {
+                for (PlayerInfo playerInfo : minecraft.getConnection().getListedOnlinePlayers()) {
+                    if (playerInfo.getProfile().getName().equals(playerName)) {
+                        uuidSelectedPlayer = playerInfo.getProfile().getId();
+                        break;
+                    }
+                }
             }
         }
-        this.showBlockList = true;
-
-        // Пересоздаём GUI для отображения списка блоков
-        this.clearWidgets();
         this.init();
     }
 
     @Override
     public void onClose() {
         if (this.minecraft != null) {
+            uuidSelectedPlayer = null;
             this.minecraft.setScreen(null);
         }
     }
@@ -309,6 +421,19 @@ public class AllBlocksScreen extends Screen {
         }
 
         Block getBlock() { return block; }
+        ItemStack getItemStack() { return itemStack; }
+        String getName() { return name; }
+    }
+
+    private static class ItemEntry {
+        private final ItemStack itemStack;
+        private final String name;
+
+        ItemEntry(ItemStack itemStack) {
+            this.itemStack = itemStack;
+            this.name = itemStack.getHoverName().getString();
+        }
+
         ItemStack getItemStack() { return itemStack; }
         String getName() { return name; }
     }
@@ -357,9 +482,18 @@ public class AllBlocksScreen extends Screen {
 
                 // Проверяем, выбран ли этот игрок
                 if (playerName.equals("§6§l[ ВСЕМ ]")) {
-                    this.isSelected = "ALL_PLAYERS".equals(parent.selectedPlayerName);
+                    this.isSelected = UUID.fromString(All_UUID_PLAYER).equals(uuidSelectedPlayer);
                 } else {
-                    this.isSelected = playerName.equals(parent.selectedPlayerName);
+                    // На клиенте нельзя получить ServerPlayer!
+                    // Используем данные из клиента
+                    if (parent.minecraft != null && parent.minecraft.getConnection() != null) {
+                        for (PlayerInfo playerInfo : parent.minecraft.getConnection().getListedOnlinePlayers()) {
+                            if (playerInfo.getProfile().getName().equals(playerName)) {
+                                this.isSelected = playerInfo.getProfile().getId().equals(uuidSelectedPlayer);
+                                break;
+                            }
+                        }
+                    }
                 }
 
                 // Фон если выбран
@@ -422,10 +556,10 @@ public class AllBlocksScreen extends Screen {
         }
     }
 
-    // ==================== СПИСОК БЛОКОВ (СПРАВА, ПОЯВЛЯЕТСЯ ПОСЛЕ ВЫБОРА ИГРОКА) ====================
+    // ==================== СПИСОК БЛОКОВ ====================
 
     private static class ScrollingBlockList extends ObjectSelectionList<ScrollingBlockList.BlockSlot> {
-        private static final int SLOT_HEIGHT = 55; // Увеличил высоту для двух кнопок
+        private static final int SLOT_HEIGHT = 55;
         private final AllBlocksScreen parent;
 
         ScrollingBlockList(int x, int y, int width, int height, AllBlocksScreen parent) {
@@ -470,33 +604,22 @@ public class AllBlocksScreen extends Screen {
                 }
             }
 
-            // Первая кнопка (например, "Выдать")
             private void onFirstButtonClick() {
                 playClickSound();
-
-//                List<String> list = new ArrayList<>(ConfigMod.DONT_PLACE_BLOCK_LIST.get());
-//                list.add(BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString());
-//                ConfigMod.DONT_PLACE_BLOCK_LIST.set(list);
-
-
                 if (parent.minecraft != null && parent.minecraft.player != null) {
                     ElementToDontPlaceBlock(uuidSelectedPlayer, block.getBlock());
-
                 }
-
-
-
-//                ConfigMod.SPEC.save();
-
+                // Обновляем GUI чтобы показать изменения
+                parent.init();
             }
-
 
             private void onSecondButtonClick() {
                 playClickSound();
                 if (parent.minecraft != null && parent.minecraft.player != null) {
                     ElementToDontBreakBlock(uuidSelectedPlayer, block.getBlock());
-
                 }
+                // Обновляем GUI чтобы показать изменения
+                parent.init();
             }
 
             @Override
@@ -522,7 +645,7 @@ public class AllBlocksScreen extends Screen {
                 // ID блока
                 ResourceLocation key = BuiltInRegistries.BLOCK.getKey(block.getBlock());
                 String idString = key.toString();
-                if (font.width(idString) > width - 160) { // Уменьшил для двух кнопок
+                if (font.width(idString) > width - 160) {
                     idString = font.plainSubstrByWidth(idString, width - 160) + "...";
                 }
                 guiGraphics.drawString(font, idString, left + 28, top + 23, 0x888888, false);
@@ -540,7 +663,7 @@ public class AllBlocksScreen extends Screen {
                 currentButton2X = button2X;
                 currentButton2Y = buttonY;
 
-                // Первая кнопка
+                // Первая кнопка (запрет размещения)
                 if(JSONSettingCreate.IsElementInDontPlaceBlockList(uuidSelectedPlayer , block.getBlock()))
                 {
                     guiGraphics.fill(button1X, buttonY, button1X + buttonWidth, buttonY + buttonHeight, 0xFF701825);
@@ -552,13 +675,12 @@ public class AllBlocksScreen extends Screen {
                     guiGraphics.fill(button1X + 1, buttonY + 1, button1X + buttonWidth - 1, buttonY + buttonHeight - 1, 0xFF226622);
                 }
 
-
                 int centerX = button1X + buttonWidth / 2;
                 int centerY = buttonY + buttonHeight / 2;
                 guiGraphics.fill(centerX - 6, centerY - 1, centerX + 6, centerY + 1, 0xFFFFFF);
                 guiGraphics.fill(centerX - 1, centerY - 4, centerX + 1, centerY + 4, 0xFFFFFF);
 
-                // Вторая кнопка
+                // Вторая кнопка (запрет разрушения)
                 if(JSONSettingCreate.IsElementInDontBreakBlockList(uuidSelectedPlayer , block.getBlock())) {
                     guiGraphics.fill(button2X, buttonY, button2X + buttonWidth, buttonY + buttonHeight, 0xFF701825);
                     guiGraphics.fill(button2X + 1, buttonY + 1, button2X + buttonWidth - 1, buttonY + buttonHeight - 1, 0xFF701825);
@@ -566,23 +688,24 @@ public class AllBlocksScreen extends Screen {
                 else
                 {
                     guiGraphics.fill(button2X, buttonY, button2X + buttonWidth, buttonY + buttonHeight, 0xFF226622);
-                    guiGraphics.fill(button2X + 1, buttonY + 1, button2X + buttonWidth - 1, buttonY + buttonHeight - 1, 0xFF226622 );
+                    guiGraphics.fill(button2X + 1, buttonY + 1, button2X + buttonWidth - 1, buttonY + buttonHeight - 1, 0xFF226622);
                 }
 
+                centerX = button2X + buttonWidth / 2;
+                centerY = buttonY + buttonHeight / 2;
+                guiGraphics.fill(centerX - 6, centerY - 1, centerX + 6, centerY + 1, 0xFFFFFF);
             }
 
             @Override
             public boolean mouseClicked(double mouseX, double mouseY, int button) {
                 int buttonSize = 28;
 
-                // Проверяем клик по первой кнопке
                 if (mouseX >= currentButton1X && mouseX <= currentButton1X + buttonSize &&
                         mouseY >= currentButton1Y && mouseY <= currentButton1Y + buttonSize) {
                     onFirstButtonClick();
                     return true;
                 }
 
-                // Проверяем клик по второй кнопке
                 if (mouseX >= currentButton2X && mouseX <= currentButton2X + buttonSize &&
                         mouseY >= currentButton2Y && mouseY <= currentButton2Y + buttonSize) {
                     onSecondButtonClick();
@@ -595,6 +718,165 @@ public class AllBlocksScreen extends Screen {
             @Override
             public @NotNull Component getNarration() {
                 return Component.literal(block.getName());
+            }
+        }
+    }
+
+    // ==================== СПИСОК ПРЕДМЕТОВ ====================
+
+    private static class ScrollingItemList extends ObjectSelectionList<ScrollingItemList.ItemSlot> {
+        private static final int SLOT_HEIGHT = 55;
+        private final AllBlocksScreen parent;
+
+        ScrollingItemList(int x, int y, int width, int height, AllBlocksScreen parent) {
+            super(Objects.requireNonNull(parent.minecraft), width, height, y, SLOT_HEIGHT);
+            this.parent = parent;
+            this.setX(x);
+        }
+
+        @Override
+        public int getRowWidth() {
+            return this.width;
+        }
+
+        @Override
+        protected int getScrollbarPosition() {
+            return this.getX() + this.width - 6;
+        }
+
+        void updateEntries(List<ItemEntry> items) {
+            this.clearEntries();
+            items.forEach(item -> this.addEntry(new ItemSlot(parent, item)));
+        }
+
+        static class ItemSlot extends ObjectSelectionList.Entry<ItemSlot> {
+            private final AllBlocksScreen parent;
+            private final ItemEntry item;
+            private int currentButton1X;
+            private int currentButton1Y;
+            private int currentButton2X;
+            private int currentButton2Y;
+
+            ItemSlot(AllBlocksScreen parent, ItemEntry item) {
+                this.parent = parent;
+                this.item = item;
+            }
+
+            private void playClickSound() {
+                if (parent.minecraft != null && parent.minecraft.player != null) {
+                    parent.minecraft.getSoundManager().play(
+                            SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F)
+                    );
+                }
+            }
+
+            private void onFirstButtonClick() {
+                playClickSound();
+                if (parent.minecraft != null && parent.minecraft.player != null) {
+                    ElementToDontDropItem(uuidSelectedPlayer, item.getItemStack().getItem());
+                }
+                parent.init();
+            }
+
+            private void onSecondButtonClick() {
+                playClickSound();
+                if (parent.minecraft != null && parent.minecraft.player != null) {
+                    JSONSettingCreate.ElementToDontPuckupItem(uuidSelectedPlayer, item.getItemStack().getItem());
+                }
+                parent.init();
+            }
+
+            @Override
+            public void render(@NotNull GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean hovered, float partialTick) {
+                if (parent.minecraft == null) return;
+
+                Font font = parent.minecraft.font;
+                ItemStack stack = item.getItemStack();
+                String name = item.getName();
+
+                if (hovered) {
+                    guiGraphics.fill(left, top, left + width, top + height, 0x44FFFFFF);
+                }
+
+                guiGraphics.renderItem(stack, left + 4, top + 14);
+                guiGraphics.renderItemDecorations(font, stack, left + 4, top + 14);
+
+                guiGraphics.drawString(font, name, left + 28, top + 11, 0xFFFFFF, false);
+
+                ResourceLocation key = BuiltInRegistries.ITEM.getKey(item.getItemStack().getItem());
+                String idString = key.toString();
+                if (font.width(idString) > width - 160) {
+                    idString = font.plainSubstrByWidth(idString, width - 160) + "...";
+                }
+                guiGraphics.drawString(font, idString, left + 28, top + 23, 0x888888, false);
+
+                int buttonWidth = 28;
+                int buttonHeight = 28;
+                int gap = 5;
+                int button1X = left + width - (buttonWidth * 2 + gap) - 4;
+                int button2X = left + width - buttonWidth - 4;
+                int buttonY = top + (height - buttonHeight) / 2;
+
+                currentButton1X = button1X;
+                currentButton1Y = buttonY;
+                currentButton2X = button2X;
+                currentButton2Y = buttonY;
+
+                // Первая кнопка (запрет выбрасывания)
+                if(JSONSettingCreate.IsElementInDontDropItemList(uuidSelectedPlayer , item.getItemStack().getItem()))
+                {
+                    guiGraphics.fill(button1X, buttonY, button1X + buttonWidth, buttonY + buttonHeight, 0xFF701825);
+                    guiGraphics.fill(button1X + 1, buttonY + 1, button1X + buttonWidth - 1, buttonY + buttonHeight - 1, 0xFF701825);
+                }
+                else
+                {
+                    guiGraphics.fill(button1X, buttonY, button1X + buttonWidth, buttonY + buttonHeight, 0xFF226622);
+                    guiGraphics.fill(button1X + 1, buttonY + 1, button1X + buttonWidth - 1, buttonY + buttonHeight - 1, 0xFF226622);
+                }
+
+                int centerX = button1X + buttonWidth / 2;
+                int centerY = buttonY + buttonHeight / 2;
+                guiGraphics.fill(centerX - 6, centerY - 1, centerX + 6, centerY + 1, 0xFFFFFF);
+                guiGraphics.fill(centerX - 1, centerY - 4, centerX + 1, centerY + 4, 0xFFFFFF);
+
+                // Вторая кнопка (запрет подбора)
+                if(JSONSettingCreate.IsElementInDontPuckupItemList(uuidSelectedPlayer , item.getItemStack().getItem())) {
+                    guiGraphics.fill(button2X, buttonY, button2X + buttonWidth, buttonY + buttonHeight, 0xFF701825);
+                    guiGraphics.fill(button2X + 1, buttonY + 1, button2X + buttonWidth - 1, buttonY + buttonHeight - 1, 0xFF701825);
+                }
+                else
+                {
+                    guiGraphics.fill(button2X, buttonY, button2X + buttonWidth, buttonY + buttonHeight, 0xFF226622);
+                    guiGraphics.fill(button2X + 1, buttonY + 1, button2X + buttonWidth - 1, buttonY + buttonHeight - 1, 0xFF226622);
+                }
+
+                centerX = button2X + buttonWidth / 2;
+                centerY = buttonY + buttonHeight / 2;
+                guiGraphics.fill(centerX - 6, centerY - 1, centerX + 6, centerY + 1, 0xFFFFFF);
+            }
+
+            @Override
+            public boolean mouseClicked(double mouseX, double mouseY, int button) {
+                int buttonSize = 28;
+
+                if (mouseX >= currentButton1X && mouseX <= currentButton1X + buttonSize &&
+                        mouseY >= currentButton1Y && mouseY <= currentButton1Y + buttonSize) {
+                    onFirstButtonClick();
+                    return true;
+                }
+
+                if (mouseX >= currentButton2X && mouseX <= currentButton2X + buttonSize &&
+                        mouseY >= currentButton2Y && mouseY <= currentButton2Y + buttonSize) {
+                    onSecondButtonClick();
+                    return true;
+                }
+
+                return false;
+            }
+
+            @Override
+            public @NotNull Component getNarration() {
+                return Component.literal(item.getName());
             }
         }
     }

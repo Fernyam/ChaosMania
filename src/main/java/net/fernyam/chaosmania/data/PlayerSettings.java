@@ -1,6 +1,7 @@
 package net.fernyam.chaosmania.data;
 
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 
 import java.util.List;
@@ -28,26 +29,46 @@ public class PlayerSettings {
     public PlayerSettings() {}
 
     // Конструктор для удобного создания
-    public PlayerSettings(String name, UUID uuidPlayer, boolean isDisablePlaceBlock,
-                          boolean isDisableBreakBlock, List<String> dontPlaceBlockList,
-                          List<String> dontBreakBlockList) {
+    public PlayerSettings(String name, UUID uuidPlayer,
+                          boolean isDisablePlaceBlock, boolean isDisableBreakBlock,
+                          List<String> dontPlaceBlockList, List<String> dontBreakBlockList ,
+                          boolean isDisableItemItemDrop , boolean isDisableItemPickup ,
+                          List<String> dontDropItemList , List<String> dontPuckupItemList )
+    {
         this.name = name;
         this.uuidPlayer = uuidPlayer.toString();
+
         this.isDisablePlaceBlock = isDisablePlaceBlock;
         this.isDisableBreakBlock = isDisableBreakBlock;
         this.dontPlaceBlockList = dontPlaceBlockList;
         this.dontBreakBlockList = dontBreakBlockList;
+
+        this.isDisableItemItemDrop = isDisableItemItemDrop;
+        this.isDisableItemPickup = isDisableItemPickup;
+
+        this.dontDropItemList = dontDropItemList;
+        this.dontPuckupItemList = dontPuckupItemList;
+
     }
 
-    public PlayerSettings(String name, String uuidPlayer, boolean isDisablePlaceBlock,
-                          boolean isDisableBreakBlock, List<String> dontPlaceBlockList,
-                          List<String> dontBreakBlockList) {
+    public PlayerSettings(String name, String uuidPlayer,
+                          boolean isDisablePlaceBlock, boolean isDisableBreakBlock,
+                          List<String> dontPlaceBlockList, List<String> dontBreakBlockList ,
+                          boolean isDisableItemItemDrop , boolean isDisableItemPickup ,
+                          List<String> dontDropItemList , List<String> dontPuckupItemList) {
         this.name = name;
         this.uuidPlayer = uuidPlayer;
+
         this.isDisablePlaceBlock = isDisablePlaceBlock;
         this.isDisableBreakBlock = isDisableBreakBlock;
         this.dontPlaceBlockList = dontPlaceBlockList;
         this.dontBreakBlockList = dontBreakBlockList;
+
+        this.isDisableItemItemDrop = isDisableItemItemDrop;
+        this.isDisableItemPickup = isDisableItemPickup;
+
+        this.dontDropItemList = dontDropItemList;
+        this.dontPuckupItemList = dontPuckupItemList;
     }
 
 
@@ -70,6 +91,48 @@ public class PlayerSettings {
     public List<String> getDontBreakBlockList() { return dontBreakBlockList; }
     public void setDontBreakBlockList(List<String> dontBreakBlockList) { this.dontBreakBlockList = dontBreakBlockList; }
 
+
+    public boolean isDisableItemItemDrop() {
+        return isDisableItemItemDrop;
+    }
+
+    public void setDisableItemItemDrop(boolean disableItemItemDrop) {
+        isDisableItemItemDrop = disableItemItemDrop;
+    }
+
+    public boolean isDisableItemPickup() {
+        return isDisableItemPickup;
+    }
+
+    public void setDisableItemPickup(boolean disableItemPickup) {
+        isDisableItemPickup = disableItemPickup;
+    }
+
+    public void setDisablePlantingSeed(boolean disablePlantingSeed) {
+        isDisablePlantingSeed = disablePlantingSeed;
+    }
+
+    public void setDisableVillagerTrading(boolean disableVillagerTrading) {
+        isDisableVillagerTrading = disableVillagerTrading;
+    }
+
+    public List<String> getDontDropItemList() {
+        return dontDropItemList;
+    }
+
+    public void setDontDropItemList(List<String> dontDropItemList) {
+        this.dontDropItemList = dontDropItemList;
+    }
+
+    public List<String> getDontPuckupItemList() {
+        return dontPuckupItemList;
+    }
+
+    public void setDontPuckupItemList(List<String> dontPuckupItemList) {
+        this.dontPuckupItemList = dontPuckupItemList;
+    }
+
+
     public void AddElementToDontBreakBlockList(Block block)
     {
         dontBreakBlockList.add(BuiltInRegistries.BLOCK.getKey(block).toString());
@@ -88,5 +151,25 @@ public class PlayerSettings {
     public void RemoveElementToDontPlaceBlockList(Block block)
     {
         dontPlaceBlockList.remove(BuiltInRegistries.BLOCK.getKey(block).toString());
+    }
+
+    public void AddElementToDontDropItemList(Item item)
+    {
+        dontDropItemList.add(BuiltInRegistries.ITEM.getKey(item).toString());
+    }
+
+    public void RemoveElementToDontDropItemList(Item item)
+    {
+        dontDropItemList.remove(BuiltInRegistries.ITEM.getKey(item).toString());
+    }
+
+    public void AddElementToDontPuckupItemList(Item item)
+    {
+        dontPuckupItemList.add(BuiltInRegistries.ITEM.getKey(item).toString());
+    }
+
+    public void RemoveElementToDontPuckupItemList(Item item)
+    {
+        dontPuckupItemList.remove(BuiltInRegistries.ITEM.getKey(item).toString());
     }
 }

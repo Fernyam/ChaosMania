@@ -4,6 +4,8 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.fernyam.chaosmania.ChaosManiaMod;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.neoforged.fml.loading.FMLPaths;
 import org.apache.logging.log4j.LogManager;
@@ -63,6 +65,10 @@ public class JSONSettingCreate {
                 false,
                 false,
                 new ArrayList<>(),
+                new ArrayList<>(),
+                false,
+                false,
+                new ArrayList<>(),
                 new ArrayList<>()
         );
 
@@ -104,6 +110,10 @@ public class JSONSettingCreate {
             PlayerSettings newPlayer = new PlayerSettings(
                     name,
                     uuid,
+                    false,
+                    false,
+                    new ArrayList<>(),
+                    new ArrayList<>(),
                     false,
                     false,
                     new ArrayList<>(),
@@ -194,5 +204,87 @@ public class JSONSettingCreate {
 
         return false;
     }
+
+
+    public static void ElementToDontDropItem(UUID uuid, Item item) {
+        List<PlayerSettings> allSettings = loadSettings();
+
+        PlayerSettings playerSettings = allSettings.stream()
+                .filter(settings -> settings.getUuidPlayer().equals(uuid.toString()))
+                .findFirst()
+                .orElse(null);
+
+        if (playerSettings != null) {
+            if(playerSettings.getDontBreakBlockList().contains(BuiltInRegistries.ITEM.getKey(item).toString()))
+            {
+                playerSettings.RemoveElementToDontDropItemList(item);
+            }
+            else
+            {
+                playerSettings.AddElementToDontDropItemList(item);
+            }
+            saveSettings(allSettings);
+        }
+    }
+
+    public static void ElementToDontPuckupItem(UUID uuid, Item item) {
+        List<PlayerSettings> allSettings = loadSettings();
+
+        PlayerSettings playerSettings = allSettings.stream()
+                .filter(settings -> settings.getUuidPlayer().equals(uuid.toString()))
+                .findFirst()
+                .orElse(null);
+
+        if (playerSettings != null) {
+            if(playerSettings.getDontPlaceBlockList().contains(BuiltInRegistries.ITEM.getKey(item).toString()))
+            {
+                playerSettings.RemoveElementToDontPuckupItemList(item);
+            }
+            else
+            {
+                playerSettings.AddElementToDontPuckupItemList(item);
+            }
+            saveSettings(allSettings);
+        }
+    }
+
+    public static boolean IsElementInDontPuckupItemList(UUID uuid, Item item)
+    {
+        List<PlayerSettings> allSettings = loadSettings();
+        PlayerSettings playerSettings = allSettings.stream()
+                .filter(settings -> settings.getUuidPlayer().equals(uuid.toString()))
+                .findFirst()
+                .orElse(null);
+        if (playerSettings != null)
+        {
+            if(playerSettings.getDontPlaceBlockList().contains(BuiltInRegistries.ITEM.getKey(item).toString()))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static boolean IsElementInDontDropItemList(UUID uuid, Item item)
+    {
+        List<PlayerSettings> allSettings = loadSettings();
+        PlayerSettings playerSettings = allSettings.stream()
+                .filter(settings -> settings.getUuidPlayer().equals(uuid.toString()))
+                .findFirst()
+                .orElse(null);
+
+        if (playerSettings != null)
+        {
+            if(playerSettings.getDontBreakBlockList().contains(BuiltInRegistries.ITEM.getKey(item).toString()))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+
 
 }
