@@ -16,7 +16,7 @@ public class PlayerSettings {
     private List<String> dontPlaceBlockList;
     private List<String> dontBreakBlockList;
 
-    private  boolean isDisableItemItemDrop;
+    private  boolean isDisableItemDrop;
     private  boolean isDisableItemPickup;
     private List<String> dontDropItemList;
     private List<String> dontPuckupItemList;
@@ -32,7 +32,7 @@ public class PlayerSettings {
     public PlayerSettings(String name, UUID uuidPlayer,
                           boolean isDisablePlaceBlock, boolean isDisableBreakBlock,
                           List<String> dontPlaceBlockList, List<String> dontBreakBlockList ,
-                          boolean isDisableItemItemDrop , boolean isDisableItemPickup ,
+                          boolean isDisableItemDrop, boolean isDisableItemPickup ,
                           List<String> dontDropItemList , List<String> dontPuckupItemList )
     {
         this.name = name;
@@ -43,7 +43,7 @@ public class PlayerSettings {
         this.dontPlaceBlockList = dontPlaceBlockList;
         this.dontBreakBlockList = dontBreakBlockList;
 
-        this.isDisableItemItemDrop = isDisableItemItemDrop;
+        this.isDisableItemDrop = isDisableItemDrop;
         this.isDisableItemPickup = isDisableItemPickup;
 
         this.dontDropItemList = dontDropItemList;
@@ -54,7 +54,7 @@ public class PlayerSettings {
     public PlayerSettings(String name, String uuidPlayer,
                           boolean isDisablePlaceBlock, boolean isDisableBreakBlock,
                           List<String> dontPlaceBlockList, List<String> dontBreakBlockList ,
-                          boolean isDisableItemItemDrop , boolean isDisableItemPickup ,
+                          boolean isDisableItemDrop, boolean isDisableItemPickup ,
                           List<String> dontDropItemList , List<String> dontPuckupItemList) {
         this.name = name;
         this.uuidPlayer = uuidPlayer;
@@ -64,7 +64,7 @@ public class PlayerSettings {
         this.dontPlaceBlockList = dontPlaceBlockList;
         this.dontBreakBlockList = dontBreakBlockList;
 
-        this.isDisableItemItemDrop = isDisableItemItemDrop;
+        this.isDisableItemDrop = isDisableItemDrop;
         this.isDisableItemPickup = isDisableItemPickup;
 
         this.dontDropItemList = dontDropItemList;
@@ -92,12 +92,12 @@ public class PlayerSettings {
     public void setDontBreakBlockList(List<String> dontBreakBlockList) { this.dontBreakBlockList = dontBreakBlockList; }
 
 
-    public boolean isDisableItemItemDrop() {
-        return isDisableItemItemDrop;
+    public boolean isDisableItemDrop() {
+        return isDisableItemDrop;
     }
 
-    public void setDisableItemItemDrop(boolean disableItemItemDrop) {
-        isDisableItemItemDrop = disableItemItemDrop;
+    public void setDisableItemDrop(boolean disableItemItemDrop) {
+        isDisableItemDrop = disableItemItemDrop;
     }
 
     public boolean isDisableItemPickup() {
@@ -135,6 +135,7 @@ public class PlayerSettings {
 
     public void AddElementToDontBreakBlockList(Block block)
     {
+        if(dontBreakBlockList.contains(BuiltInRegistries.BLOCK.getKey(block).toString())) return;
         dontBreakBlockList.add(BuiltInRegistries.BLOCK.getKey(block).toString());
     }
 
@@ -145,6 +146,7 @@ public class PlayerSettings {
 
     public void AddElementToDontPlaceBlockList(Block block)
     {
+        if(dontPlaceBlockList.contains(BuiltInRegistries.BLOCK.getKey(block).toString())) return;
         dontPlaceBlockList.add(BuiltInRegistries.BLOCK.getKey(block).toString());
     }
 
@@ -155,6 +157,7 @@ public class PlayerSettings {
 
     public void AddElementToDontDropItemList(Item item)
     {
+        if(dontDropItemList.contains(BuiltInRegistries.ITEM.getKey(item).toString())) return;
         dontDropItemList.add(BuiltInRegistries.ITEM.getKey(item).toString());
     }
 
@@ -165,6 +168,7 @@ public class PlayerSettings {
 
     public void AddElementToDontPuckupItemList(Item item)
     {
+        if(dontPuckupItemList.contains(BuiltInRegistries.ITEM.getKey(item).toString())) return;
         dontPuckupItemList.add(BuiltInRegistries.ITEM.getKey(item).toString());
     }
 

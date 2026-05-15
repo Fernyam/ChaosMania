@@ -214,7 +214,7 @@ public class JSONSettingCreate {
                 .orElse(null);
 
         if (playerSettings != null) {
-            if(playerSettings.getDontBreakBlockList().contains(BuiltInRegistries.ITEM.getKey(item).toString()))
+            if(playerSettings.getDontDropItemList().contains(BuiltInRegistries.ITEM.getKey(item).toString()))
             {
                 playerSettings.RemoveElementToDontDropItemList(item);
             }
@@ -235,7 +235,7 @@ public class JSONSettingCreate {
                 .orElse(null);
 
         if (playerSettings != null) {
-            if(playerSettings.getDontPlaceBlockList().contains(BuiltInRegistries.ITEM.getKey(item).toString()))
+            if(playerSettings.getDontPuckupItemList().contains(BuiltInRegistries.ITEM.getKey(item).toString()))
             {
                 playerSettings.RemoveElementToDontPuckupItemList(item);
             }
@@ -256,7 +256,7 @@ public class JSONSettingCreate {
                 .orElse(null);
         if (playerSettings != null)
         {
-            if(playerSettings.getDontPlaceBlockList().contains(BuiltInRegistries.ITEM.getKey(item).toString()))
+            if(playerSettings.getDontPuckupItemList().contains(BuiltInRegistries.ITEM.getKey(item).toString()))
             {
                 return true;
             }
@@ -275,7 +275,7 @@ public class JSONSettingCreate {
 
         if (playerSettings != null)
         {
-            if(playerSettings.getDontBreakBlockList().contains(BuiltInRegistries.ITEM.getKey(item).toString()))
+            if(playerSettings.getDontDropItemList().contains(BuiltInRegistries.ITEM.getKey(item).toString()))
             {
                 return true;
             }
@@ -340,13 +340,13 @@ public class JSONSettingCreate {
 
         if(playerSettings != null)
         {
-            if(playerSettings.isDisableItemItemDrop())
+            if(playerSettings.isDisableItemDrop())
             {
-                playerSettings.setDisableItemItemDrop(false);
+                playerSettings.setDisableItemDrop(false);
             }
             else
             {
-                playerSettings.setDisableItemItemDrop(true);
+                playerSettings.setDisableItemDrop(true);
             }
         }
 

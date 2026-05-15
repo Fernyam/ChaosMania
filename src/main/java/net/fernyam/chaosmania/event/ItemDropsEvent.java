@@ -1,23 +1,38 @@
 package net.fernyam.chaosmania.event;
 
-import net.fernyam.chaosmania.ConfigMod;
-import net.minecraft.network.chat.Component;
+import net.fernyam.chaosmania.ChaosManiaMod;
+import net.fernyam.chaosmania.data.JSONSettingCreate;
+import net.fernyam.chaosmania.data.PlayerSettings;
+import net.minecraft.core.registries.BuiltInRegistries;
+//import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.event.entity.item.ItemTossEvent;
+import         net.minecraft.world.entity.item.ItemEntity;
+
+import java.util.List;
 
 public class ItemDropsEvent {
 
     public static void onItemToss(ItemTossEvent event) {
-        if(!ConfigMod.DISABLE_ITEM_DROPS.get()) return;
+//        if(!ConfigMod.DISABLE_ITEM_DROPS.get()) return;
 
-        ItemStack tossedStack = event.getEntity().getItem();
 
-        // Запрещаем выбрасывание элитр
-        if (tossedStack.getItem() == Items.ELYTRA) {
-            event.setCanceled(true);
 
-        }
+        List<PlayerSettings> allSettings = JSONSettingCreate.loadSettings();
+
+
+            PlayerSettings playerSettings = allSettings.stream()
+                    .filter(settings -> settings.getUuidPlayer().equals(event.getPlayer().getUUID().toString()))
+                    .findFirst()
+                    .orElse(null);
+
+            if(playerSettings == null) return;
+
+            if(!playerSettings.isDisableItemDrop()) return;
+
+            if(playerSettings.getDontDropItemList().contains(BuiltInRegistries.ITEM.getKey(event.getEntity().getItem().getItem()).toString()))
+            {
+                event.setCanceled(true);
+            }
     }
 }

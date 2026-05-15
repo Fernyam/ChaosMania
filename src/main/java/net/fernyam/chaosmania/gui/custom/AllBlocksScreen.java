@@ -223,12 +223,19 @@ public class AllBlocksScreen extends Screen {
 
             this.addRenderableWidget(Button.builder(
                     Component.literal("⚙"),
-                    button -> JSONSettingCreate.IsDisableItemDrop(uuidSelectedPlayer)
+                    button ->
+                    {
+                        JSONSettingCreate.IsDisableItemDrop(uuidSelectedPlayer);
+                    }
+
             ).bounds(leftListX + 400, 36, 17 , 17).build());
 
             this.addRenderableWidget(Button.builder(
                     Component.literal("⚙"),
-                    button -> JSONSettingCreate.IsDisableItemPickup(uuidSelectedPlayer)
+                    button ->
+                    {
+                        JSONSettingCreate.IsDisableItemPickup(uuidSelectedPlayer);
+                    }
             ).bounds(leftListX + 375, 36, 17 , 17).build());
 
             this.searchItemBox.setFocused(true);
