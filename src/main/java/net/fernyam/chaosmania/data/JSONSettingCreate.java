@@ -125,6 +125,18 @@ public class JSONSettingCreate {
         }
     }
 
+    public static PlayerSettings GetPlayerSettingsOfUUID(UUID uuid)
+    {
+        List<PlayerSettings> allSettings = loadSettings();
+
+        PlayerSettings playerSettings = allSettings.stream()
+                .filter(settings -> settings.getUuidPlayer().equals(uuid.toString()))
+                .findFirst()
+                .orElse(null);
+
+        return playerSettings;
+    }
+
     public static void ElementToDontBreakBlock(UUID uuid, Block block) {
         List<PlayerSettings> allSettings = loadSettings();
 

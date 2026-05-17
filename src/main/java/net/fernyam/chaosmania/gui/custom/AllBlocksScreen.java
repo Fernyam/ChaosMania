@@ -1,6 +1,7 @@
 package net.fernyam.chaosmania.gui.custom;
 
 import net.fernyam.chaosmania.data.JSONSettingCreate;
+import net.fernyam.chaosmania.gui.custom.custom2.SpecialSettingsScreen;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -52,7 +53,7 @@ public class AllBlocksScreen extends Screen {
     private List<ItemEntry> filteredItems;
     private String lastItemSearch = "";
 
-    private boolean showBlockList = false;       // Показывать ли список блоков
+    private boolean IsShowBlockList = false;       // Показывать ли список блоков
     private boolean isShowItemList = false;      // Показывать ли список предметов
 
 
@@ -73,6 +74,7 @@ public class AllBlocksScreen extends Screen {
             allBlocks.add(new BlockEntry(block, new ItemStack(item)));
         }
 
+        // Базовая сортировка по имени
         allBlocks.sort((a, b) -> a.getName().compareToIgnoreCase(b.getName()));
         filteredBlocks = new ArrayList<>(allBlocks);
     }
@@ -81,10 +83,11 @@ public class AllBlocksScreen extends Screen {
         allItems = new ArrayList<>();
 
         for (Item item : BuiltInRegistries.ITEM) {
-            if (item instanceof BlockItem) continue; // Пропускаем блоки, только предметы
+            if (item instanceof BlockItem) continue;
             allItems.add(new ItemEntry(new ItemStack(item)));
         }
 
+        // Базовая сортировка по имени
         allItems.sort((a, b) -> a.getName().compareToIgnoreCase(b.getName()));
         filteredItems = new ArrayList<>(allItems);
     }
@@ -133,36 +136,42 @@ public class AllBlocksScreen extends Screen {
                 this
         );
 
-        if(uuidSelectedPlayer != null  && !showBlockList && !isShowItemList)
+        if(uuidSelectedPlayer != null  && !IsShowBlockList && !isShowItemList)
         {
 
             this.addRenderableWidget( Button.builder(
                     Component.literal("Настройка блоков"),
                     button -> {
-                        showBlockList = true;
+                        IsShowBlockList = true;
                         isShowItemList = false;
                         init();
                     }
             ).bounds(leftListX + 180, this.height - 180, 200 , 20).build());
 
-            //В реализации
             this.addRenderableWidget(Button.builder(
                     Component.literal("Настройка предметов"),
                     button -> {
                         isShowItemList = true;
-                        showBlockList = false;
+                        IsShowBlockList = false;
                         init();
                     }
             ).bounds(leftListX + 180, this.height - 150, 200 , 20).build());
 
-            //Пока нет реализации
+            //В реализации
             this.addRenderableWidget(Button.builder(
                     Component.literal("Настройка возможностей"),
-                    button -> this.onClose()
+                    button ->
+                    {
+                        isShowItemList = false;
+                        IsShowBlockList = false;
+                        onClose();
+                        this.minecraft.setScreen(new SpecialSettingsScreen(uuidSelectedPlayer , this));
+                        init();
+                    }
             ).bounds(leftListX + 180, this.height - 120, 200 , 20).build());
         }
 
-        if (showBlockList) {
+        if (IsShowBlockList) {
             this.blockList = new ScrollingBlockList(
                     rightListX - 60,
                     listY,
@@ -222,21 +231,26 @@ public class AllBlocksScreen extends Screen {
             );
 
             this.addRenderableWidget(Button.builder(
-                    Component.literal("⚙"),
+                    Component.literal("Выкидывание предметы: " + (JSONSettingCreate.GetPlayerSettingsOfUUID(uuidSelectedPlayer).isDisableItemDrop() ? "§aВключено" : "§cОтключено")),
                     button ->
                     {
                         JSONSettingCreate.IsDisableItemDrop(uuidSelectedPlayer);
+                        button.setMessage( Component.literal("Выкидывание предметы: " + (JSONSettingCreate.GetPlayerSettingsOfUUID(uuidSelectedPlayer).isDisableItemDrop() ? "§aВключено" : "§cОтключено")));
+//                        init();
                     }
 
-            ).bounds(leftListX + 400, 36, 17 , 17).build());
+            ).bounds(leftListX + 340, 15, 90 , 20).build());
 
             this.addRenderableWidget(Button.builder(
-                    Component.literal("⚙"),
+                    Component.literal("Подбирать предметы: " + (JSONSettingCreate.GetPlayerSettingsOfUUID(uuidSelectedPlayer).isDisableItemPickup() ? "§aВключено" : "§cОтключено")),
                     button ->
                     {
                         JSONSettingCreate.IsDisableItemPickup(uuidSelectedPlayer);
+                        button.setMessage(Component.literal("Подбирать предметы: " + (JSONSettingCreate.GetPlayerSettingsOfUUID(uuidSelectedPlayer).isDisableItemPickup() ? "§aВключено" : "§cОтключено")));
+//                        init();
                     }
-            ).bounds(leftListX + 375, 36, 17 , 17).build());
+            ).bounds(leftListX + 340, 37, 90 , 20).build());
+
 
             this.searchItemBox.setFocused(true);
             this.searchItemBox.setCanLoseFocus(true);
@@ -293,7 +307,7 @@ public class AllBlocksScreen extends Screen {
 
         // 5. Если выбран игрок - показываем информацию и надпись над списком
         if (uuidSelectedPlayer != null) {
-            if (showBlockList) {
+            if (IsShowBlockList) {
                 String blocksTitle = "§lСписок блоков: §r" + filteredBlocks.size() + " / " + allBlocks.size();
                 guiGraphics.drawString(
                         this.font,
@@ -320,7 +334,7 @@ public class AllBlocksScreen extends Screen {
         super.render(guiGraphics, mouseX, mouseY, partialTick);
 
         // 7. Подсказка в полях поиска
-        if (showBlockList && searchBlockBox != null && !searchBlockBox.isFocused() && searchBlockBox.getValue().isEmpty()) {
+        if (IsShowBlockList && searchBlockBox != null && !searchBlockBox.isFocused() && searchBlockBox.getValue().isEmpty()) {
             guiGraphics.drawString(
                     this.font,
                     "Поиск блоков...",
@@ -352,7 +366,7 @@ public class AllBlocksScreen extends Screen {
     public void tick() {
         super.tick();
 
-        if (showBlockList && searchBlockBox != null && !searchBlockBox.getValue().equals(lastBlockSearch)) {
+        if (IsShowBlockList && searchBlockBox != null && !searchBlockBox.getValue().equals(lastBlockSearch)) {
             updateBlockSearch();
         }
 
@@ -364,13 +378,36 @@ public class AllBlocksScreen extends Screen {
     private void updateBlockSearch() {
         lastBlockSearch = searchBlockBox.getValue();
 
+        List<BlockEntry> tempList;
+
         if (lastBlockSearch.isEmpty()) {
-            filteredBlocks = new ArrayList<>(allBlocks);
+            tempList = new ArrayList<>(allBlocks);
         } else {
-            filteredBlocks = allBlocks.stream()
+            tempList = allBlocks.stream()
                     .filter(entry -> entry.getName().toLowerCase().contains(lastBlockSearch.toLowerCase()))
                     .collect(Collectors.toList());
         }
+
+        // Сортируем: сначала закреплённые (по алфавиту), потом незакреплённые (по алфавиту)
+        if (uuidSelectedPlayer != null) {
+            tempList.sort((a, b) -> {
+                boolean aPinned = isBlockPinned(a, uuidSelectedPlayer);
+                boolean bPinned = isBlockPinned(b, uuidSelectedPlayer);
+
+                // Если оба закреплены или оба не закреплены - сортируем по имени
+                if (aPinned == bPinned) {
+                    return a.getName().compareToIgnoreCase(b.getName());
+                }
+
+                // Закреплённые идут первыми
+                return aPinned ? -1 : 1;
+            });
+        } else {
+            // Если игрок не выбран - просто сортируем по имени
+            tempList.sort((a, b) -> a.getName().compareToIgnoreCase(b.getName()));
+        }
+
+        filteredBlocks = tempList;
 
         if (blockList != null) {
             blockList.updateEntries(filteredBlocks);
@@ -381,13 +418,36 @@ public class AllBlocksScreen extends Screen {
     private void updateItemSearch() {
         lastItemSearch = searchItemBox.getValue();
 
+        List<ItemEntry> tempList;
+
         if (lastItemSearch.isEmpty()) {
-            filteredItems = new ArrayList<>(allItems);
+            tempList = new ArrayList<>(allItems);
         } else {
-            filteredItems = allItems.stream()
+            tempList = allItems.stream()
                     .filter(entry -> entry.getName().toLowerCase().contains(lastItemSearch.toLowerCase()))
                     .collect(Collectors.toList());
         }
+
+        // Сортируем: сначала закреплённые (по алфавиту), потом незакреплённые (по алфавиту)
+        if (uuidSelectedPlayer != null) {
+            tempList.sort((a, b) -> {
+                boolean aPinned = isItemPinned(a, uuidSelectedPlayer);
+                boolean bPinned = isItemPinned(b, uuidSelectedPlayer);
+
+                // Если оба закреплены или оба не закреплены - сортируем по имени
+                if (aPinned == bPinned) {
+                    return a.getName().compareToIgnoreCase(b.getName());
+                }
+
+                // Закреплённые идут первыми
+                return aPinned ? -1 : 1;
+            });
+        } else {
+            // Если игрок не выбран - просто сортируем по имени
+            tempList.sort((a, b) -> a.getName().compareToIgnoreCase(b.getName()));
+        }
+
+        filteredItems = tempList;
 
         if (itemList != null) {
             itemList.updateEntries(filteredItems);
@@ -396,7 +456,7 @@ public class AllBlocksScreen extends Screen {
     }
 
     private void selectPlayer(String playerName) {
-        showBlockList = false;
+        IsShowBlockList = false;
         isShowItemList = false;
 
         if (playerName.equals("§6§l[ ВСЕМ ]")) {
@@ -413,6 +473,16 @@ public class AllBlocksScreen extends Screen {
             }
         }
         this.init();
+    }
+
+    private boolean isBlockPinned(BlockEntry entry, UUID playerUuid) {
+        return JSONSettingCreate.IsElementInDontPlaceBlockList(playerUuid, entry.getBlock()) ||
+                JSONSettingCreate.IsElementInDontBreakBlockList(playerUuid, entry.getBlock());
+    }
+
+    private boolean isItemPinned(ItemEntry entry, UUID playerUuid) {
+        return JSONSettingCreate.IsElementInDontDropItemList(playerUuid, entry.getItemStack().getItem()) ||
+                JSONSettingCreate.IsElementInDontPuckupItemList(playerUuid, entry.getItemStack().getItem());
     }
 
     @Override
@@ -638,18 +708,22 @@ public class AllBlocksScreen extends Screen {
                 playClickSound();
                 if (parent.minecraft != null && parent.minecraft.player != null) {
                     ElementToDontPlaceBlock(uuidSelectedPlayer, block.getBlock());
+                    // Обновляем список с пересортировкой
+                    if (parent.IsShowBlockList) {
+                        parent.updateBlockSearch();
+                    }
                 }
-                // Обновляем GUI чтобы показать изменения
-                parent.init();
             }
 
             private void onSecondButtonClick() {
                 playClickSound();
                 if (parent.minecraft != null && parent.minecraft.player != null) {
                     ElementToDontBreakBlock(uuidSelectedPlayer, block.getBlock());
+                    // Обновляем список с пересортировкой
+                    if (parent.IsShowBlockList) {
+                        parent.updateBlockSearch();
+                    }
                 }
-                // Обновляем GUI чтобы показать изменения
-                parent.init();
             }
 
             @Override
@@ -804,16 +878,20 @@ public class AllBlocksScreen extends Screen {
                 playClickSound();
                 if (parent.minecraft != null && parent.minecraft.player != null) {
                     ElementToDontDropItem(uuidSelectedPlayer, item.getItemStack().getItem());
+                    if (parent.isShowItemList) {
+                        parent.updateItemSearch();
+                    }
                 }
-                parent.init();
             }
 
             private void onSecondButtonClick() {
                 playClickSound();
                 if (parent.minecraft != null && parent.minecraft.player != null) {
                     JSONSettingCreate.ElementToDontPuckupItem(uuidSelectedPlayer, item.getItemStack().getItem());
+                    if (parent.isShowItemList) {
+                        parent.updateItemSearch();
+                    }
                 }
-                parent.init();
             }
 
             @Override
