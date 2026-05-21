@@ -4,13 +4,9 @@ import net.fernyam.chaosmania.client.ClientInputHandler;
 import net.fernyam.chaosmania.client.KeyBindings;
 import net.fernyam.chaosmania.data.JSONSettingCreate;
 import net.fernyam.chaosmania.event.*;
-import net.fernyam.chaosmania.gui.LoggingScreen;
-import net.fernyam.chaosmania.gui.MainConfigScreen;
-import net.fernyam.chaosmania.gui.custom.AllBlocksScreen;
-import net.minecraft.client.Minecraft;
+import net.fernyam.chaosmania.event.blockEvent.BlockBreakEvent;
+import net.fernyam.chaosmania.event.blockEvent.BlockPlaceEvent;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
@@ -22,7 +18,6 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
-import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
 import net.neoforged.bus.api.IEventBus;
@@ -36,13 +31,6 @@ public class ChaosManiaMod {
     public ChaosManiaMod(IEventBus modEventBus, ModContainer modContainer) {
         NeoForge.EVENT_BUS.register(this);
         modContainer.registerConfig(ModConfig.Type.COMMON, ConfigMod.SPEC);
-
-        // Регистрация экрана конфигурации (для клиента)
-        if (Dist.CLIENT.isClient()) {
-            modContainer.registerExtensionPoint(IConfigScreenFactory.class,
-                    (container, screen) -> new AllBlocksScreen());
-
-        }
 
         //Клиент
         modEventBus.addListener(KeyBindings::registerBindings);

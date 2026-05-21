@@ -58,17 +58,22 @@ public class JSONSettingCreate {
     private static List<PlayerSettings> getDefaultSettings() {
         List<PlayerSettings> settings = new ArrayList<>();
 
+//        PlayerSettings defaultSettings = new PlayerSettings(
+//                "ALL_PLAYER",
+//                All_UUID_PLAYER,
+//                false,
+//                false,
+//                new ArrayList<>(),
+//                new ArrayList<>(),
+//                false,
+//                false,
+//                new ArrayList<>(),
+//                new ArrayList<>()
+//        );
+
         PlayerSettings defaultSettings = new PlayerSettings(
                 "ALL_PLAYER",
-                All_UUID_PLAYER,
-                false,
-                false,
-                new ArrayList<>(),
-                new ArrayList<>(),
-                false,
-                false,
-                new ArrayList<>(),
-                new ArrayList<>()
+                All_UUID_PLAYER
         );
 
         settings.add(defaultSettings);
@@ -108,15 +113,7 @@ public class JSONSettingCreate {
         if (!exists) {
             PlayerSettings newPlayer = new PlayerSettings(
                     name,
-                    uuid,
-                    false,
-                    false,
-                    new ArrayList<>(),
-                    new ArrayList<>(),
-                    false,
-                    false,
-                    new ArrayList<>(),
-                    new ArrayList<>()
+                    uuid
             );
 
             allSettings.add(newPlayer);
@@ -125,8 +122,7 @@ public class JSONSettingCreate {
         }
     }
 
-    public static PlayerSettings GetPlayerSettingsOfUUID(UUID uuid)
-    {
+    public static PlayerSettings GetPlayerSettingsOfUUID(UUID uuid) {
         List<PlayerSettings> allSettings = loadSettings();
 
         PlayerSettings playerSettings = allSettings.stream()
@@ -146,12 +142,9 @@ public class JSONSettingCreate {
                 .orElse(null);
 
         if (playerSettings != null) {
-            if(playerSettings.getDontBreakBlockList().contains(BuiltInRegistries.BLOCK.getKey(block).toString()))
-            {
+            if (playerSettings.getDontBreakBlockList().contains(BuiltInRegistries.BLOCK.getKey(block).toString())) {
                 playerSettings.RemoveElementToDontBreakBlockList(block);
-            }
-            else
-            {
+            } else {
                 playerSettings.AddElementToDontBreakBlockList(block);
             }
             saveSettings(allSettings);
@@ -167,29 +160,23 @@ public class JSONSettingCreate {
                 .orElse(null);
 
         if (playerSettings != null) {
-            if(playerSettings.getDontPlaceBlockList().contains(BuiltInRegistries.BLOCK.getKey(block).toString()))
-            {
+            if (playerSettings.getDontPlaceBlockList().contains(BuiltInRegistries.BLOCK.getKey(block).toString())) {
                 playerSettings.RemoveElementToDontPlaceBlockList(block);
-            }
-            else
-            {
+            } else {
                 playerSettings.AddElementToDontPlaceBlockList(block);
             }
             saveSettings(allSettings);
         }
     }
 
-    public static boolean IsElementInDontPlaceBlockList(UUID uuid, Block block)
-    {
+    public static boolean IsElementInDontPlaceBlockList(UUID uuid, Block block) {
         List<PlayerSettings> allSettings = loadSettings();
         PlayerSettings playerSettings = allSettings.stream()
                 .filter(settings -> settings.getUuidPlayer().equals(uuid.toString()))
                 .findFirst()
                 .orElse(null);
-        if (playerSettings != null)
-        {
-            if(playerSettings.getDontPlaceBlockList().contains(BuiltInRegistries.BLOCK.getKey(block).toString()))
-            {
+        if (playerSettings != null) {
+            if (playerSettings.getDontPlaceBlockList().contains(BuiltInRegistries.BLOCK.getKey(block).toString())) {
                 return true;
             }
         }
@@ -197,18 +184,15 @@ public class JSONSettingCreate {
         return false;
     }
 
-    public static boolean IsElementInDontBreakBlockList(UUID uuid, Block block)
-    {
+    public static boolean IsElementInDontBreakBlockList(UUID uuid, Block block) {
         List<PlayerSettings> allSettings = loadSettings();
         PlayerSettings playerSettings = allSettings.stream()
                 .filter(settings -> settings.getUuidPlayer().equals(uuid.toString()))
                 .findFirst()
                 .orElse(null);
 
-        if (playerSettings != null)
-        {
-            if(playerSettings.getDontBreakBlockList().contains(BuiltInRegistries.BLOCK.getKey(block).toString()))
-            {
+        if (playerSettings != null) {
+            if (playerSettings.getDontBreakBlockList().contains(BuiltInRegistries.BLOCK.getKey(block).toString())) {
                 return true;
             }
         }
@@ -226,12 +210,9 @@ public class JSONSettingCreate {
                 .orElse(null);
 
         if (playerSettings != null) {
-            if(playerSettings.getDontDropItemList().contains(BuiltInRegistries.ITEM.getKey(item).toString()))
-            {
+            if (playerSettings.getDontDropItemList().contains(BuiltInRegistries.ITEM.getKey(item).toString())) {
                 playerSettings.RemoveElementToDontDropItemList(item);
-            }
-            else
-            {
+            } else {
                 playerSettings.AddElementToDontDropItemList(item);
             }
             saveSettings(allSettings);
@@ -247,29 +228,23 @@ public class JSONSettingCreate {
                 .orElse(null);
 
         if (playerSettings != null) {
-            if(playerSettings.getDontPuckupItemList().contains(BuiltInRegistries.ITEM.getKey(item).toString()))
-            {
+            if (playerSettings.getDontPuckupItemList().contains(BuiltInRegistries.ITEM.getKey(item).toString())) {
                 playerSettings.RemoveElementToDontPuckupItemList(item);
-            }
-            else
-            {
+            } else {
                 playerSettings.AddElementToDontPuckupItemList(item);
             }
             saveSettings(allSettings);
         }
     }
 
-    public static boolean IsElementInDontPuckupItemList(UUID uuid, Item item)
-    {
+    public static boolean IsElementInDontPuckupItemList(UUID uuid, Item item) {
         List<PlayerSettings> allSettings = loadSettings();
         PlayerSettings playerSettings = allSettings.stream()
                 .filter(settings -> settings.getUuidPlayer().equals(uuid.toString()))
                 .findFirst()
                 .orElse(null);
-        if (playerSettings != null)
-        {
-            if(playerSettings.getDontPuckupItemList().contains(BuiltInRegistries.ITEM.getKey(item).toString()))
-            {
+        if (playerSettings != null) {
+            if (playerSettings.getDontPuckupItemList().contains(BuiltInRegistries.ITEM.getKey(item).toString())) {
                 return true;
             }
         }
@@ -277,18 +252,15 @@ public class JSONSettingCreate {
         return false;
     }
 
-    public static boolean IsElementInDontDropItemList(UUID uuid, Item item)
-    {
+    public static boolean IsElementInDontDropItemList(UUID uuid, Item item) {
         List<PlayerSettings> allSettings = loadSettings();
         PlayerSettings playerSettings = allSettings.stream()
                 .filter(settings -> settings.getUuidPlayer().equals(uuid.toString()))
                 .findFirst()
                 .orElse(null);
 
-        if (playerSettings != null)
-        {
-            if(playerSettings.getDontDropItemList().contains(BuiltInRegistries.ITEM.getKey(item).toString()))
-            {
+        if (playerSettings != null) {
+            if (playerSettings.getDontDropItemList().contains(BuiltInRegistries.ITEM.getKey(item).toString())) {
                 return true;
             }
         }
@@ -296,7 +268,71 @@ public class JSONSettingCreate {
         return false;
     }
 
-    public static void IsDisablePlaceBlock(UUID uuid)
+
+    //=========================================================================
+
+    public static void ElementToSettingBlock(UUID uuid, Block block) {
+        List<PlayerSettings> allSettings = loadSettings();
+
+        PlayerSettings playerSettings = allSettings.stream()
+                .filter(settings -> settings.getUuidPlayer().equals(uuid.toString()))
+                .findFirst()
+                .orElse(null);
+
+        if (playerSettings != null) {
+            if(playerSettings.isBlockExists(BuiltInRegistries.BLOCK.getKey(block).toString()))
+            {
+                playerSettings.RemoveBlockElement(block);
+            }
+            else
+            {
+                playerSettings.addBlockElement(block);
+            }
+            saveSettings(allSettings);
+        }
+    }
+
+    public static void ElementToSettingItem(UUID uuid, Item item) {
+        List<PlayerSettings> allSettings = loadSettings();
+
+        PlayerSettings playerSettings = allSettings.stream()
+                .filter(settings -> settings.getUuidPlayer().equals(uuid.toString()))
+                .findFirst()
+                .orElse(null);
+
+        if (playerSettings != null) {
+            if(playerSettings.isItemExists(BuiltInRegistries.ITEM.getKey(item).toString()))
+            {
+                playerSettings.removeItemElement(item);
+            }
+            else
+            {
+                playerSettings.addItemElement(item);
+            }
+            saveSettings(allSettings);
+        }
+    }
+
+
+    public static void SwitchDisablePlaceBlock(UUID uuid , String idBlock) {
+        List<PlayerSettings> allSettings = loadSettings();
+        PlayerSettings playerSettings = allSettings.stream()
+                .filter(settings -> settings.getUuidPlayer().equals(uuid.toString()))
+                .findFirst()
+                .orElse(null);
+
+        if (playerSettings != null) {
+            if (playerSettings.canPlaceBlock(idBlock)) {
+                playerSettings.SetSettingPlaceToElementBlock(idBlock, false);
+                saveSettings(allSettings);
+            } else {
+                playerSettings.SetSettingPlaceToElementBlock(idBlock,true);
+                saveSettings(allSettings);
+            }
+        }
+    }
+
+    public static void SwitchDisableBreakBlock(UUID uuid , String idBlock)
     {
         List<PlayerSettings> allSettings = loadSettings();
         PlayerSettings playerSettings = allSettings.stream()
@@ -306,20 +342,20 @@ public class JSONSettingCreate {
 
         if(playerSettings != null)
         {
-            if(playerSettings.isDisablePlaceBlock())
+            if(playerSettings.canBreakBlock(idBlock))
             {
-                playerSettings.setDisablePlaceBlock(false);
+                playerSettings.SetSettingBreakToElementBlock(idBlock ,false);
             }
             else
             {
-                playerSettings.setDisablePlaceBlock(true);
+                playerSettings.SetSettingBreakToElementBlock(idBlock,true);
             }
         }
 
         saveSettings(allSettings);
     }
 
-    public static void IsDisableBreakBlock(UUID uuid)
+    public static void SwitchDisableItemDrop(UUID uuid , String idItem)
     {
         List<PlayerSettings> allSettings = loadSettings();
         PlayerSettings playerSettings = allSettings.stream()
@@ -329,20 +365,20 @@ public class JSONSettingCreate {
 
         if(playerSettings != null)
         {
-            if(playerSettings.isDisableBreakBlock())
+            if(playerSettings.canDropItem(idItem))
             {
-                playerSettings.setDisableBreakBlock(false);
+                playerSettings.setSettingDropToElementItem(idItem,false);
             }
             else
             {
-                playerSettings.setDisableBreakBlock(true);
+                playerSettings.setSettingDropToElementItem(idItem,true);
             }
         }
 
         saveSettings(allSettings);
     }
 
-    public static void IsDisableItemDrop(UUID uuid)
+    public static void SwitchDisableItemPickup(UUID uuid , String idItem)
     {
         List<PlayerSettings> allSettings = loadSettings();
         PlayerSettings playerSettings = allSettings.stream()
@@ -352,41 +388,17 @@ public class JSONSettingCreate {
 
         if(playerSettings != null)
         {
-            if(playerSettings.isDisableItemDrop())
+            if(playerSettings.canPickupItem(idItem))
             {
-                playerSettings.setDisableItemDrop(false);
+                playerSettings.setSettingPickupToElementItem(idItem,false);
             }
             else
             {
-                playerSettings.setDisableItemDrop(true);
+                playerSettings.setSettingPickupToElementItem(idItem,true);
             }
         }
 
         saveSettings(allSettings);
     }
-
-    public static void IsDisableItemPickup(UUID uuid)
-    {
-        List<PlayerSettings> allSettings = loadSettings();
-        PlayerSettings playerSettings = allSettings.stream()
-                .filter(settings -> settings.getUuidPlayer().equals(uuid.toString()))
-                .findFirst()
-                .orElse(null);
-
-        if(playerSettings != null)
-        {
-            if(playerSettings.isDisableItemPickup())
-            {
-                playerSettings.setDisableItemPickup(false);
-            }
-            else
-            {
-                playerSettings.setDisableItemPickup(true);
-            }
-        }
-
-        saveSettings(allSettings);
-    }
-
 
 }

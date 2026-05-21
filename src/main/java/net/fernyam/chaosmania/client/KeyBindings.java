@@ -8,22 +8,32 @@ import net.neoforged.neoforge.client.settings.KeyConflictContext;
 
 public class KeyBindings {
 
+    public static KeyMapping EXAMPLE_KEY_2;
     // 1. Создаем объект KeyMapping (пока что null, заполним в событии регистрации)
-    public static KeyMapping EXAMPLE_KEY;
+//    public static KeyMapping EXAMPLE_KEY;
 
     // 2. Это событие вызывается NeoForge специально для регистрации клавиш (MOD bus)
 
     public static void registerBindings(RegisterKeyMappingsEvent event) {
         // Создаем клавишу. Параметры: имя (локализуемый ключ), контекст, клавиша по умолчанию (R), категория
-        EXAMPLE_KEY = new KeyMapping(
-                "key.chaosmania.open_master_screen", // Локализуемый ключ
+//        EXAMPLE_KEY = new KeyMapping(
+//                "key.chaosmania.open_master_screen", // Локализуемый ключ
+//                KeyConflictContext.IN_GAME,         // Конфликтует только когда мы в игре
+//                InputConstants.Type.KEYSYM,         // Тип: клавиатура
+//                InputConstants.KEY_R,               // Код клавиши (R)
+//                "key.category.chaosmania"            // Категория в меню управления
+//        );
+
+        EXAMPLE_KEY_2 = new KeyMapping(
+                "key.chaosmania.open_master_screen_2", // Локализуемый ключ
                 KeyConflictContext.IN_GAME,         // Конфликтует только когда мы в игре
                 InputConstants.Type.KEYSYM,         // Тип: клавиатура
-                InputConstants.KEY_R,               // Код клавиши (R)
+                InputConstants.KEY_L,               // Код клавиши (R)
                 "key.category.chaosmania"            // Категория в меню управления
         );
 
         // Регистрируем её
-        event.register(EXAMPLE_KEY);
+//        event.register(EXAMPLE_KEY);
+        event.register(EXAMPLE_KEY_2);
     }
 }
