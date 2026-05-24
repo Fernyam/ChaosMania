@@ -7,12 +7,11 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.ObjectSelectionList;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -34,9 +33,7 @@ public class TestAllBlockScreen extends Screen {
 
     public static TestScreen parentScreen;
 
-    private static final int BUTTON_WIDTH = 200;
     private static final int BUTTON_HEIGHT = 20;
-    private static final int BUTTON_SPACING = 20;
 
     private static final int backgroundWidth = 216;
     private static final int backgroundHeight = 230;
@@ -47,6 +44,23 @@ public class TestAllBlockScreen extends Screen {
 
     private List<TestScreen.BlockEntry> allBlocksMasterList;
     private String currentBlockSearchFilter = "";
+
+    // Типы поиска
+    private enum SearchType {
+        NAME,           // обычный поиск по имени
+        ID,             // поиск по ID (префикс :)
+        MOD_ID          // поиск по MOD_ID (префикс @)
+    }
+
+    private static class ParsedSearchQuery {
+        SearchType type;
+        String query;
+
+        ParsedSearchQuery(SearchType type, String query) {
+            this.type = type;
+            this.query = query.toLowerCase().trim();
+        }
+    }
 
     public TestAllBlockScreen(PlayerInfoData player, TestScreen parentScreen) {
         super(Component.literal("Добавление блоков в настройки игрока " + (player.isAllPlayers() ? player.getName() : "§9§l" + player.getName())));
@@ -61,27 +75,75 @@ public class TestAllBlockScreen extends Screen {
         loadAllBlocks();
     }
 
+    // ==================== Методы для поиска ====================
+
+    private ParsedSearchQuery parseSearchQuery(String searchText) {
+        if (searchText == null || searchText.trim().isEmpty()) {
+            return new ParsedSearchQuery(SearchType.NAME, "");
+        }
+
+        String trimmed = searchText.trim();
+
+        if (trimmed.startsWith(":")) {
+            // Поиск по ID (часть после :)
+            String query = trimmed.substring(1).trim();
+            return new ParsedSearchQuery(SearchType.ID, query);
+        }
+        else if (trimmed.startsWith("@")) {
+            // Поиск по MOD_ID (часть до :)
+            String query = trimmed.substring(1).trim();
+            return new ParsedSearchQuery(SearchType.MOD_ID, query);
+        }
+        else {
+            // Обычный поиск по имени
+            return new ParsedSearchQuery(SearchType.NAME, trimmed);
+        }
+    }
+
     private List<TestScreen.BlockEntry> filterBlocksBySearch(List<TestScreen.BlockEntry> blocks, String searchText) {
         if (searchText == null || searchText.trim().isEmpty()) {
             return new ArrayList<>(blocks);
         }
 
-        String lowerCaseSearch = searchText.toLowerCase().trim();
+        ParsedSearchQuery parsed = parseSearchQuery(searchText);
+
+        if (parsed.query.isEmpty()) {
+            return new ArrayList<>(blocks);
+        }
+
         List<TestScreen.BlockEntry> filtered = new ArrayList<>();
 
-        for (TestScreen.BlockEntry entry : blocks) {
-            // Поиск по имени блока
-            if (entry.getName().toLowerCase().contains(lowerCaseSearch)) {
-                filtered.add(entry);
-            }
-            // Поиск по ID блока
-            else {
-                ResourceLocation key = BuiltInRegistries.BLOCK.getKey(entry.getBlock());
-                String idString = key.toString().toLowerCase();
-                if (idString.contains(lowerCaseSearch)) {
-                    filtered.add(entry);
+        switch (parsed.type) {
+            case NAME:
+                // Поиск по имени блока
+                for (TestScreen.BlockEntry entry : blocks) {
+                    if (entry.getName().toLowerCase().contains(parsed.query)) {
+                        filtered.add(entry);
+                    }
                 }
-            }
+                break;
+
+            case ID:
+                // Поиск только по PATH части ID (после :)
+                for (TestScreen.BlockEntry entry : blocks) {
+                    ResourceLocation key = BuiltInRegistries.BLOCK.getKey(entry.getBlock());
+                    String path = key.getPath().toLowerCase();
+                    if (path.contains(parsed.query)) {
+                        filtered.add(entry);
+                    }
+                }
+                break;
+
+            case MOD_ID:
+                // Поиск по MOD_ID (часть до :)
+                for (TestScreen.BlockEntry entry : blocks) {
+                    ResourceLocation key = BuiltInRegistries.BLOCK.getKey(entry.getBlock());
+                    String modId = key.getNamespace().toLowerCase();
+                    if (modId.contains(parsed.query)) {
+                        filtered.add(entry);
+                    }
+                }
+                break;
         }
 
         return filtered;
@@ -94,13 +156,11 @@ public class TestAllBlockScreen extends Screen {
             boolean bAdded = JSONSettingCreate.GetPlayerSettingsOfUUID(player.getUuid())
                     .isBlockExists(BuiltInRegistries.BLOCK.getKey(b.getBlock()).toString());
 
-            // Активные (добавленные) блоки идут первыми
             if (aAdded && !bAdded) {
                 return -1;
             } else if (!aAdded && bAdded) {
                 return 1;
             } else {
-                // Если статус одинаковый, сортируем по имени
                 return a.getName().compareToIgnoreCase(b.getName());
             }
         });
@@ -109,7 +169,6 @@ public class TestAllBlockScreen extends Screen {
     private void updateBlockListWithFilter() {
         if (blockListScroll != null && allBlocksMasterList != null) {
             List<TestScreen.BlockEntry> filtered = filterBlocksBySearch(allBlocksMasterList, currentBlockSearchFilter);
-            // Сортируем с учетом активных блоков
             sortBlocksWithActiveFirst(filtered);
             blockListScroll.updateEntries(filtered);
         }
@@ -125,10 +184,7 @@ public class TestAllBlockScreen extends Screen {
             allBlocksMasterList.add(new TestScreen.BlockEntry(block, new ItemStack(item)));
         }
 
-        // Сортируем мастер-список с учетом активных блоков
         sortBlocksWithActiveFirst(allBlocksMasterList);
-
-        // Применяем фильтр
         updateBlockListWithFilter();
     }
 
@@ -137,33 +193,42 @@ public class TestAllBlockScreen extends Screen {
         super.init();
 
         int centerX = this.width / 2;
-        int startY = this.height - this.height / 90;
 
         this.addRenderableWidget(Button.builder(
                 Component.literal("← Назад"),
                 button -> {
                     this.minecraft.setScreen(parentScreen);
                 }
-
         ).bounds(centerX - this.backgroundWidth / 2, this.height - 25, this.backgroundWidth, BUTTON_HEIGHT).build());
 
-        this.searchAllBlock = new EditBox(getFontRender(), this.width / 2 - 98, this.height / 2 - 112 + 7, this.backgroundWidth - 20, 17, Component.literal("Поиск блоков"));
+        this.searchAllBlock = new EditBox(getFontRender(), this.width / 2 - 98, this.height / 2 - 112 + 7, this.backgroundWidth - 20, 17, Component.literal("Поиск блоков... (:id | @modid)"));
 
-        // Добавляем слушатель изменений текста для поиска
         this.searchAllBlock.setResponder(searchText -> {
             currentBlockSearchFilter = searchText;
+
+            // Меняем цвет текста в зависимости от префикса
+            if (searchText != null && !searchText.isEmpty()) {
+                if (searchText.startsWith(":")) {
+                    searchAllBlock.setTextColor(0xFFFF55); // Жёлтый
+                } else if (searchText.startsWith("@")) {
+                    searchAllBlock.setTextColor(0x55FFFF); // Голубой
+                } else {
+                    searchAllBlock.setTextColor(0xFFFFFF); // Белый
+                }
+            } else {
+                searchAllBlock.setTextColor(0xFFFFFF); // Белый
+            }
+
             updateBlockListWithFilter();
         });
 
         this.blockListScroll = new ScrollingBlockList(this.width / 2 - this.backgroundWidth / 2 + 10, this.height / 2 - 117 + 25 + 7, this.backgroundWidth - 20, this.backgroundHeight - 45, this);
 
-        // Показываем все блоки с учетом фильтра и сортировки
         updateBlockListWithFilter();
 
         this.addRenderableWidget(searchAllBlock);
         this.addRenderableWidget(blockListScroll);
     }
-
 
     @Override
     public void render(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
@@ -182,7 +247,6 @@ public class TestAllBlockScreen extends Screen {
 
         super.render(guiGraphics, mouseX, mouseY, partialTick);
     }
-
 
     @Override
     public void renderBackground(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
@@ -204,7 +268,7 @@ public class TestAllBlockScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == 256) { // ESC
+        if (keyCode == 256) {
             this.onClose();
             return true;
         }
@@ -215,9 +279,7 @@ public class TestAllBlockScreen extends Screen {
         return getMinecraft().font;
     }
 
-
     //=================================================================
-
 
     private static class ScrollingBlockList extends ObjectSelectionList<ScrollingBlockList.BlockSlot> {
         private static final int SLOT_HEIGHT = 55;
@@ -242,40 +304,34 @@ public class TestAllBlockScreen extends Screen {
         void updateEntries(List<TestScreen.BlockEntry> blocks) {
             this.clearEntries();
             if (blocks != null) {
-                blocks.forEach(block -> this.addEntry(new ScrollingBlockList.BlockSlot(parent, block)));
+                blocks.forEach(block -> this.addEntry(new BlockSlot(parent, block)));
             }
         }
 
-        static class BlockSlot extends ObjectSelectionList.Entry<ScrollingBlockList.BlockSlot> {
+        static class BlockSlot extends ObjectSelectionList.Entry<BlockSlot> {
             private final TestAllBlockScreen parent;
             private final TestScreen.BlockEntry block;
-            private int currentButton1X;
-            private int currentButton1Y;
+            private final Button AddBlockButton;
 
             BlockSlot(TestAllBlockScreen parent, TestScreen.BlockEntry block) {
                 this.parent = parent;
                 this.block = block;
+
+                this.AddBlockButton = Button.builder(
+                                Component.literal(JSONSettingCreate.GetPlayerSettingsOfUUID(player.getUuid()).isBlockExists(BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString()) ? "§c-" : "§a+"),
+                                button -> {
+                                    button.setMessage(Component.literal(JSONSettingCreate.GetPlayerSettingsOfUUID(player.getUuid()).isBlockExists(BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString()) ? "§c-" : "§a+"));
+                                    onButtonClick();
+                                }
+                        ).bounds(0, 0, 20, 20)
+                        .tooltip(Tooltip.create(Component.literal("Добавить блок в список")))
+                        .build();
             }
 
-            private void playClickSound() {
-                if (parent.minecraft != null && parent.minecraft.player != null) {
-                    parent.minecraft.getSoundManager().play(
-                            SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F)
-                    );
-                }
-            }
-
-            private void onFirstButtonClick() {
-                playClickSound();
-
+            private void onButtonClick() {
                 JSONSettingCreate.ElementToSettingBlock(player.getUuid(), block.getBlock());
-
-                ChaosManiaMod.LOGGER.info(block.getName());
-
-                // Обновляем список, чтобы показать изменение статуса кнопки и пересортировать блоки
                 parent.updateBlockListWithFilter();
             }
-
 
             @Override
             public void render(@NotNull GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean hovered, float partialTick) {
@@ -285,82 +341,41 @@ public class TestAllBlockScreen extends Screen {
                 ItemStack stack = block.getItemStack();
                 String name = block.getName();
 
-                // Фон при наведении
                 if (hovered) {
                     guiGraphics.fill(left, top, left + width, top + height, 0x44FFFFFF);
                 }
 
-                // Иконка блока
                 guiGraphics.renderItem(stack, left + 4, top + 14);
                 guiGraphics.renderItemDecorations(font, stack, left + 4, top + 14);
 
-                // Название блока
+                if (font.width(name) > width - 80) {
+                    name = font.plainSubstrByWidth(name, width - 80) + "...";
+                }
                 guiGraphics.drawString(font, name, left + 28, top + 11, 0xFFFFFF, false);
 
-                // ID блока
                 ResourceLocation key = BuiltInRegistries.BLOCK.getKey(block.getBlock());
                 String idString = key.toString();
-                if (font.width(idString) > width - 160) {
-                    idString = font.plainSubstrByWidth(idString, width - 160) + "...";
+                if (font.width(idString) > width - 100) {
+                    idString = font.plainSubstrByWidth(idString, width - 100) + "...";
                 }
                 guiGraphics.drawString(font, idString, left + 28, top + 23, 0x888888, false);
 
-                // Две кнопки
-                int buttonWidth = 28;
-                int buttonHeight = 28;
-                int gap = 5;
-                int button1X = left + width - (buttonWidth * 2 + gap) - 4;
-                int button2X = left + width - buttonWidth - 4;
+                int buttonWidth = 20;
+                int buttonHeight = 20;
+                int buttonX = left + width - buttonWidth - 35;
                 int buttonY = top + (height - buttonHeight) / 2;
 
-                currentButton1X = button1X;
-                currentButton1Y = buttonY;
+                AddBlockButton.setX(buttonX + 20);
+                AddBlockButton.setY(buttonY);
 
-                // Проверяем, добавлен ли уже блок
-                boolean isBlockAdded = JSONSettingCreate.GetPlayerSettingsOfUUID(player.getUuid())
-                        .isBlockExists(BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString());
-
-                if(!isBlockAdded)
-                {
-                    // Красная кнопка - блок не добавлен
-                    guiGraphics.fill(button1X, buttonY, button1X + buttonWidth, buttonY + buttonHeight, 0xFF701825);
-                    guiGraphics.fill(button1X + 1, buttonY + 1, button1X + buttonWidth - 1, buttonY + buttonHeight - 1, 0xFF701825);
-
-                    // Рисуем плюсик
-                    int centerX = button1X + buttonWidth / 2;
-                    int centerY = buttonY + buttonHeight / 2;
-                    guiGraphics.fill(centerX - 6, centerY - 1, centerX + 6, centerY + 1, 0xFFFFFF);
-                    guiGraphics.fill(centerX - 1, centerY - 4, centerX + 1, centerY + 4, 0xFFFFFF);
-                }
-                else
-                {
-                    // Зеленая кнопка - блок уже добавлен
-                    guiGraphics.fill(button1X, buttonY, button1X + buttonWidth, buttonY + buttonHeight, 0xFF226622);
-                    guiGraphics.fill(button1X + 1, buttonY + 1, button1X + buttonWidth - 1, buttonY + buttonHeight - 1, 0xFF226622);
-
-                    // Рисуем галочку
-                    int centerX = button1X + buttonWidth / 2;
-                    int centerY = buttonY + buttonHeight / 2;
-                    guiGraphics.fill(centerX - 6, centerY - 1, centerX + 6, centerY + 1, 0xFFFFFF);
-                    guiGraphics.fill(centerX - 1, centerY - 4, centerX + 1, centerY + 4, 0xFFFFFF);
-                }
-
-                // Вторая кнопка (пока не используется)
-                int centerX2 = button2X + buttonWidth / 2;
-                int centerY2 = buttonY + buttonHeight / 2;
-                guiGraphics.fill(centerX2 - 6, centerY2 - 1, centerX2 + 6, centerY2 + 1, 0xFFFFFF);
+                AddBlockButton.render(guiGraphics, mouseX, mouseY, partialTick);
             }
 
             @Override
             public boolean mouseClicked(double mouseX, double mouseY, int button) {
-                int buttonSize = 28;
-
-                if (mouseX >= currentButton1X && mouseX <= currentButton1X + buttonSize &&
-                        mouseY >= currentButton1Y && mouseY <= currentButton1Y + buttonSize) {
-                    onFirstButtonClick();
+                if (AddBlockButton.mouseClicked(mouseX, mouseY, button)) {
                     return true;
                 }
-
                 return false;
             }
 

@@ -1,6 +1,5 @@
 package net.fernyam.chaosmania.client;
 
-import net.fernyam.chaosmania.gui.LoggingScreen;
 
 import net.fernyam.chaosmania.gui.custom.test.TestScreen;
 import net.neoforged.bus.api.SubscribeEvent;

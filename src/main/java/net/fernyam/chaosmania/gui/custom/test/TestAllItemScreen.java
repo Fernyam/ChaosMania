@@ -7,12 +7,11 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.ObjectSelectionList;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.NotNull;
@@ -43,6 +42,23 @@ public class TestAllItemScreen extends Screen {
     private List<ItemEntry> allItemsMasterList;
     private String currentItemSearchFilter = "";
 
+    // Типы поиска
+    private enum SearchType {
+        NAME,           // обычный поиск по имени
+        ID,             // поиск по ID (префикс :)
+        MOD_ID          // поиск по MOD_ID (префикс @)
+    }
+
+    private static class ParsedSearchQuery {
+        SearchType type;
+        String query;
+
+        ParsedSearchQuery(SearchType type, String query) {
+            this.type = type;
+            this.query = query.toLowerCase().trim();
+        }
+    }
+
     public TestAllItemScreen(PlayerInfoData player, TestScreen parentScreen) {
         super(Component.literal("Добавление предметов в настройки игрока " + (player.isAllPlayers() ? player.getName() : "§9§l" + player.getName())));
 
@@ -56,27 +72,69 @@ public class TestAllItemScreen extends Screen {
         loadAllItems();
     }
 
+    // ==================== Методы для поиска ====================
+
+    private ParsedSearchQuery parseSearchQuery(String searchText) {
+        if (searchText == null || searchText.trim().isEmpty()) {
+            return new ParsedSearchQuery(SearchType.NAME, "");
+        }
+
+        String trimmed = searchText.trim();
+
+        if (trimmed.startsWith(":")) {
+            String query = trimmed.substring(1).trim();
+            return new ParsedSearchQuery(SearchType.ID, query);
+        }
+        else if (trimmed.startsWith("@")) {
+            String query = trimmed.substring(1).trim();
+            return new ParsedSearchQuery(SearchType.MOD_ID, query);
+        }
+        else {
+            return new ParsedSearchQuery(SearchType.NAME, trimmed);
+        }
+    }
+
     private List<ItemEntry> filterItemsBySearch(List<ItemEntry> items, String searchText) {
         if (searchText == null || searchText.trim().isEmpty()) {
             return new ArrayList<>(items);
         }
 
-        String lowerCaseSearch = searchText.toLowerCase().trim();
+        ParsedSearchQuery parsed = parseSearchQuery(searchText);
+
+        if (parsed.query.isEmpty()) {
+            return new ArrayList<>(items);
+        }
+
         List<ItemEntry> filtered = new ArrayList<>();
 
-        for (ItemEntry entry : items) {
-            // Поиск по имени предмета
-            if (entry.getName().toLowerCase().contains(lowerCaseSearch)) {
-                filtered.add(entry);
-            }
-            // Поиск по ID предмета
-            else {
-                ResourceLocation key = BuiltInRegistries.ITEM.getKey(entry.getItem());
-                String idString = key.toString().toLowerCase();
-                if (idString.contains(lowerCaseSearch)) {
-                    filtered.add(entry);
+        switch (parsed.type) {
+            case NAME:
+                for (ItemEntry entry : items) {
+                    if (entry.getName().toLowerCase().contains(parsed.query)) {
+                        filtered.add(entry);
+                    }
                 }
-            }
+                break;
+
+            case ID:
+                for (ItemEntry entry : items) {
+                    ResourceLocation key = BuiltInRegistries.ITEM.getKey(entry.getItem());
+                    String path = key.getPath().toLowerCase();
+                    if (path.contains(parsed.query)) {
+                        filtered.add(entry);
+                    }
+                }
+                break;
+
+            case MOD_ID:
+                for (ItemEntry entry : items) {
+                    ResourceLocation key = BuiltInRegistries.ITEM.getKey(entry.getItem());
+                    String modId = key.getNamespace().toLowerCase();
+                    if (modId.contains(parsed.query)) {
+                        filtered.add(entry);
+                    }
+                }
+                break;
         }
 
         return filtered;
@@ -89,13 +147,11 @@ public class TestAllItemScreen extends Screen {
             boolean bAdded = JSONSettingCreate.GetPlayerSettingsOfUUID(player.getUuid())
                     .isItemExists(BuiltInRegistries.ITEM.getKey(b.getItem()).toString());
 
-            // Активные (добавленные) предметы идут первыми
             if (aAdded && !bAdded) {
                 return -1;
             } else if (!aAdded && bAdded) {
                 return 1;
             } else {
-                // Если статус одинаковый, сортируем по имени
                 return a.getName().compareToIgnoreCase(b.getName());
             }
         });
@@ -104,7 +160,6 @@ public class TestAllItemScreen extends Screen {
     private void updateItemListWithFilter() {
         if (itemListScroll != null && allItemsMasterList != null) {
             List<ItemEntry> filtered = filterItemsBySearch(allItemsMasterList, currentItemSearchFilter);
-            // Сортируем с учетом активных предметов
             sortItemsWithActiveFirst(filtered);
             itemListScroll.updateEntries(filtered);
         }
@@ -114,15 +169,11 @@ public class TestAllItemScreen extends Screen {
         allItemsMasterList = new ArrayList<>();
 
         for (Item item : BuiltInRegistries.ITEM) {
-            // Пропускаем блоки, оставляем только предметы
             if (item instanceof net.minecraft.world.item.BlockItem) continue;
             allItemsMasterList.add(new ItemEntry(item, new ItemStack(item)));
         }
 
-        // Сортируем мастер-список с учетом активных предметов
         sortItemsWithActiveFirst(allItemsMasterList);
-
-        // Применяем фильтр
         updateItemListWithFilter();
     }
 
@@ -137,20 +188,31 @@ public class TestAllItemScreen extends Screen {
                 button -> {
                     this.minecraft.setScreen(parentScreen);
                 }
-
         ).bounds(centerX - this.backgroundWidth / 2, this.height - 25, this.backgroundWidth, BUTTON_HEIGHT).build());
 
-        this.searchAllItems = new EditBox(getFontRender(), this.width / 2 - 98, this.height / 2 - 112 + 7, this.backgroundWidth - 20, 17, Component.literal("Поиск предметов"));
+        this.searchAllItems = new EditBox(getFontRender(), this.width / 2 - 98, this.height / 2 - 112 + 7, this.backgroundWidth - 20, 17, Component.literal("Поиск предметов... (:id | @modid)"));
 
-        // Добавляем слушатель изменений текста для поиска
         this.searchAllItems.setResponder(searchText -> {
             currentItemSearchFilter = searchText;
+
+            // Меняем цвет текста в зависимости от префикса
+            if (searchText != null && !searchText.isEmpty()) {
+                if (searchText.startsWith(":")) {
+                    searchAllItems.setTextColor(0xFFFF55); // Жёлтый
+                } else if (searchText.startsWith("@")) {
+                    searchAllItems.setTextColor(0x55FFFF); // Голубой
+                } else {
+                    searchAllItems.setTextColor(0xFFFFFF); // Белый
+                }
+            } else {
+                searchAllItems.setTextColor(0xFFFFFF); // Белый
+            }
+
             updateItemListWithFilter();
         });
 
         this.itemListScroll = new ScrollingItemList(this.width / 2 - this.backgroundWidth / 2 + 10, this.height / 2 - 117 + 25 + 7, this.backgroundWidth - 20, this.backgroundHeight - 45, this);
 
-        // Показываем все предметы с учетом фильтра и сортировки
         updateItemListWithFilter();
 
         this.addRenderableWidget(searchAllItems);
@@ -171,20 +233,6 @@ public class TestAllItemScreen extends Screen {
                 0xFFFFFF,
                 true
         );
-
-        // Отображаем информацию о поиске
-        if (!currentItemSearchFilter.isEmpty() && allItemsMasterList != null) {
-            int resultsCount = itemListScroll != null ? itemListScroll.children().size() : 0;
-            String info = String.format("Найдено: %d / %d", resultsCount, allItemsMasterList.size());
-            guiGraphics.drawString(
-                    this.font,
-                    info,
-                    this.width / 2 - 98,
-                    this.height / 2 - 125 + 7 - 10,
-                    0xAAAAAA,
-                    false
-            );
-        }
 
         super.render(guiGraphics, mouseX, mouseY, partialTick);
     }
@@ -209,7 +257,7 @@ public class TestAllItemScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == 256) { // ESC
+        if (keyCode == 256) {
             this.onClose();
             return true;
         }
@@ -239,7 +287,6 @@ public class TestAllItemScreen extends Screen {
     }
 
     //=================================================================
-
 
     private static class ScrollingItemList extends ObjectSelectionList<ScrollingItemList.ItemSlot> {
         private static final int SLOT_HEIGHT = 55;
@@ -271,30 +318,25 @@ public class TestAllItemScreen extends Screen {
         static class ItemSlot extends ObjectSelectionList.Entry<ItemSlot> {
             private final TestAllItemScreen parent;
             private final ItemEntry item;
-            private int currentButton1X;
-            private int currentButton1Y;
+            private final Button AddItemButton;
 
             ItemSlot(TestAllItemScreen parent, ItemEntry item) {
                 this.parent = parent;
                 this.item = item;
+
+                this.AddItemButton = Button.builder(
+                                Component.literal(JSONSettingCreate.GetPlayerSettingsOfUUID(player.getUuid()).isItemExists(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "§c-" : "§a+"),
+                                button -> {
+                                    button.setMessage(Component.literal(JSONSettingCreate.GetPlayerSettingsOfUUID(player.getUuid()).isItemExists(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "§c-" : "§a+"));
+                                    onButtonClick();
+                                }
+                        ).bounds(0, 0, 20, 20)
+                        .tooltip(Tooltip.create(Component.literal("Добавить предмет в список")))
+                        .build();
             }
 
-            private void playClickSound() {
-                if (parent.minecraft != null && parent.minecraft.player != null) {
-                    parent.minecraft.getSoundManager().play(
-                            SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F)
-                    );
-                }
-            }
-
-            private void onFirstButtonClick() {
-                playClickSound();
-
+            private void onButtonClick() {
                 JSONSettingCreate.ElementToSettingItem(player.getUuid(), item.getItem());
-
-                ChaosManiaMod.LOGGER.info(item.getName());
-
-                // Обновляем список, чтобы показать изменение статуса кнопки и пересортировать предметы
                 parent.updateItemListWithFilter();
             }
 
@@ -306,79 +348,41 @@ public class TestAllItemScreen extends Screen {
                 ItemStack stack = item.getItemStack();
                 String name = item.getName();
 
-                // Фон при наведении
                 if (hovered) {
                     guiGraphics.fill(left, top, left + width, top + height, 0x44FFFFFF);
                 }
 
-                // Иконка предмета
                 guiGraphics.renderItem(stack, left + 4, top + 14);
                 guiGraphics.renderItemDecorations(font, stack, left + 4, top + 14);
 
-                // Название предмета
+                if (font.width(name) > width - 80) {
+                    name = font.plainSubstrByWidth(name, width - 80) + "...";
+                }
                 guiGraphics.drawString(font, name, left + 28, top + 11, 0xFFFFFF, false);
 
-                // ID предмета
                 ResourceLocation key = BuiltInRegistries.ITEM.getKey(item.getItem());
                 String idString = key.toString();
-                if (font.width(idString) > width - 160) {
-                    idString = font.plainSubstrByWidth(idString, width - 160) + "...";
+                if (font.width(idString) > width - 100) {
+                    idString = font.plainSubstrByWidth(idString, width - 100) + "...";
                 }
                 guiGraphics.drawString(font, idString, left + 28, top + 23, 0x888888, false);
 
-                // Две кнопки
-                int buttonWidth = 28;
-                int buttonHeight = 28;
-                int gap = 5;
-                int button1X = left + width - (buttonWidth * 2 + gap) - 4;
-                int button2X = left + width - buttonWidth - 4;
+                int buttonWidth = 20;
+                int buttonHeight = 20;
+                int buttonX = left + width - buttonWidth - 35;
                 int buttonY = top + (height - buttonHeight) / 2;
 
-                currentButton1X = button1X;
-                currentButton1Y = buttonY;
+                AddItemButton.setX(buttonX + 20);
+                AddItemButton.setY(buttonY);
 
-                // Проверяем, добавлен ли уже предмет
-                boolean isItemAdded = JSONSettingCreate.GetPlayerSettingsOfUUID(player.getUuid())
-                        .isItemExists(BuiltInRegistries.ITEM.getKey(item.getItem()).toString());
-
-                if (!isItemAdded) {
-                    // Красная кнопка - предмет не добавлен
-                    guiGraphics.fill(button1X, buttonY, button1X + buttonWidth, buttonY + buttonHeight, 0xFF701825);
-                    guiGraphics.fill(button1X + 1, buttonY + 1, button1X + buttonWidth - 1, buttonY + buttonHeight - 1, 0xFF701825);
-
-                    // Рисуем плюсик
-                    int centerX = button1X + buttonWidth / 2;
-                    int centerY = buttonY + buttonHeight / 2;
-                    guiGraphics.fill(centerX - 6, centerY - 1, centerX + 6, centerY + 1, 0xFFFFFF);
-                    guiGraphics.fill(centerX - 1, centerY - 4, centerX + 1, centerY + 4, 0xFFFFFF);
-                } else {
-                    // Зеленая кнопка - предмет уже добавлен
-                    guiGraphics.fill(button1X, buttonY, button1X + buttonWidth, buttonY + buttonHeight, 0xFF226622);
-                    guiGraphics.fill(button1X + 1, buttonY + 1, button1X + buttonWidth - 1, buttonY + buttonHeight - 1, 0xFF226622);
-
-                    // Рисуем галочку
-                    int centerX = button1X + buttonWidth / 2;
-                    int centerY = buttonY + buttonHeight / 2;
-                    guiGraphics.fill(centerX - 6, centerY - 1, centerX + 6, centerY + 1, 0xFFFFFF);
-                    guiGraphics.fill(centerX - 1, centerY - 4, centerX + 1, centerY + 4, 0xFFFFFF);
-                }
-
-                // Вторая кнопка (пока не используется)
-                int centerX2 = button2X + buttonWidth / 2;
-                int centerY2 = buttonY + buttonHeight / 2;
-                guiGraphics.fill(centerX2 - 6, centerY2 - 1, centerX2 + 6, centerY2 + 1, 0xFFFFFF);
+                AddItemButton.render(guiGraphics, mouseX, mouseY, partialTick);
             }
 
             @Override
             public boolean mouseClicked(double mouseX, double mouseY, int button) {
-                int buttonSize = 28;
-
-                if (mouseX >= currentButton1X && mouseX <= currentButton1X + buttonSize &&
-                        mouseY >= currentButton1Y && mouseY <= currentButton1Y + buttonSize) {
-                    onFirstButtonClick();
+                if (AddItemButton.mouseClicked(mouseX, mouseY, button)) {
                     return true;
                 }
-
                 return false;
             }
 

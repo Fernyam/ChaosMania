@@ -1,6 +1,5 @@
 package net.fernyam.chaosmania.gui.custom.test;
 
-import net.fernyam.chaosmania.ChaosManiaMod;
 import net.fernyam.chaosmania.data.JSONSettingCreate;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -38,7 +37,7 @@ class PlayerInfoData {
     private final String name;
     private final boolean isAllPlayers;
 
-    public static final PlayerInfoData ALL_PLAYERS = new PlayerInfoData(UUID.fromString(All_UUID_PLAYER), "§6§l[ВСЕМ]", true);
+    public static final PlayerInfoData ALL_PLAYERS = new PlayerInfoData(UUID.fromString(ALL_UUID_PLAYER), "§6§l[ВСЕМ]", true);
 
     public PlayerInfoData(UUID uuid, String name) {
         this(uuid, name, false);
@@ -85,7 +84,7 @@ public class TestScreen extends Screen {
     private ScrollingBlockList blockListScroll;
     private ScrollingItemList itemListScroll;
 
-    private EditBox searchAllSelectBlock;
+    private EditBox searchAllSelectObj;
 
     private Button BlockButton;
     private Button ItemButton;
@@ -101,6 +100,23 @@ public class TestScreen extends Screen {
     private List<ItemEntry> allItemsMasterList;
     private String currentItemSearchFilter = "";
 
+    // Типы поиска
+    private enum SearchType {
+        NAME,           // обычный поиск по имени
+        ID,             // поиск по ID (префикс :)
+        MOD_ID          // поиск по MOD_ID (префикс @)
+    }
+
+    private static class ParsedSearchQuery {
+        SearchType type;
+        String query;
+
+        ParsedSearchQuery(SearchType type, String query) {
+            this.type = type;
+            this.query = query.toLowerCase().trim();
+        }
+    }
+
     public TestScreen() {
         super(Component.empty());
         selectedPlayer = null;
@@ -111,6 +127,31 @@ public class TestScreen extends Screen {
         currentItemSearchFilter = "";
     }
 
+    // ==================== Методы для поиска ====================
+
+    private ParsedSearchQuery parseSearchQuery(String searchText) {
+        if (searchText == null || searchText.trim().isEmpty()) {
+            return new ParsedSearchQuery(SearchType.NAME, "");
+        }
+
+        String trimmed = searchText.trim();
+
+        if (trimmed.startsWith(":")) {
+            // Поиск по ID (часть после :)
+            String query = trimmed.substring(1).trim();
+            return new ParsedSearchQuery(SearchType.ID, query);
+        }
+        else if (trimmed.startsWith("@")) {
+            // Поиск по MOD_ID (часть до :)
+            String query = trimmed.substring(1).trim();
+            return new ParsedSearchQuery(SearchType.MOD_ID, query);
+        }
+        else {
+            // Обычный поиск по имени
+            return new ParsedSearchQuery(SearchType.NAME, trimmed);
+        }
+    }
+
     // ==================== Методы для блоков ====================
 
     private List<BlockEntry> filterBlocksBySearch(List<BlockEntry> blocks, String searchText) {
@@ -118,20 +159,45 @@ public class TestScreen extends Screen {
             return new ArrayList<>(blocks);
         }
 
-        String lowerCaseSearch = searchText.toLowerCase().trim();
+        ParsedSearchQuery parsed = parseSearchQuery(searchText);
+
+        if (parsed.query.isEmpty()) {
+            return new ArrayList<>(blocks);
+        }
+
         List<BlockEntry> filtered = new ArrayList<>();
 
-        for (BlockEntry entry : blocks) {
-            if (entry.getName().toLowerCase().contains(lowerCaseSearch)) {
-                filtered.add(entry);
-            }
-            else {
-                ResourceLocation key = BuiltInRegistries.BLOCK.getKey(entry.getBlock());
-                String idString = key.toString().toLowerCase();
-                if (idString.contains(lowerCaseSearch)) {
-                    filtered.add(entry);
+        switch (parsed.type) {
+            case NAME:
+                // Поиск по имени блока
+                for (BlockEntry entry : blocks) {
+                    if (entry.getName().toLowerCase().contains(parsed.query)) {
+                        filtered.add(entry);
+                    }
                 }
-            }
+                break;
+
+            case ID:
+                // Поиск только по PATH части ID (после :)
+                for (BlockEntry entry : blocks) {
+                    ResourceLocation key = BuiltInRegistries.BLOCK.getKey(entry.getBlock());
+                    String path = key.getPath().toLowerCase(); // Только часть после :
+                    if (path.contains(parsed.query)) {
+                        filtered.add(entry);
+                    }
+                }
+                break;
+
+            case MOD_ID:
+                // Поиск по MOD_ID (часть до :)
+                for (BlockEntry entry : blocks) {
+                    ResourceLocation key = BuiltInRegistries.BLOCK.getKey(entry.getBlock());
+                    String modId = key.getNamespace().toLowerCase();
+                    if (modId.contains(parsed.query)) {
+                        filtered.add(entry);
+                    }
+                }
+                break;
         }
 
         return filtered;
@@ -142,7 +208,7 @@ public class TestScreen extends Screen {
 
         if (selectedPlayer == null) return;
 
-        var allID = JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).GetAllID();
+        var allID = JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).getAllBlockID();
 
         for (String id : allID) {
             ResourceLocation location = ResourceLocation.tryParse(id);
@@ -171,20 +237,45 @@ public class TestScreen extends Screen {
             return new ArrayList<>(items);
         }
 
-        String lowerCaseSearch = searchText.toLowerCase().trim();
+        ParsedSearchQuery parsed = parseSearchQuery(searchText);
+
+        if (parsed.query.isEmpty()) {
+            return new ArrayList<>(items);
+        }
+
         List<ItemEntry> filtered = new ArrayList<>();
 
-        for (ItemEntry entry : items) {
-            if (entry.getName().toLowerCase().contains(lowerCaseSearch)) {
-                filtered.add(entry);
-            }
-            else {
-                ResourceLocation key = BuiltInRegistries.ITEM.getKey(entry.getItem());
-                String idString = key.toString().toLowerCase();
-                if (idString.contains(lowerCaseSearch)) {
-                    filtered.add(entry);
+        switch (parsed.type) {
+            case NAME:
+                // Поиск по имени предмета
+                for (ItemEntry entry : items) {
+                    if (entry.getName().toLowerCase().contains(parsed.query)) {
+                        filtered.add(entry);
+                    }
                 }
-            }
+                break;
+
+            case ID:
+                // Поиск только по PATH части ID (после :)
+                for (ItemEntry entry : items) {
+                    ResourceLocation key = BuiltInRegistries.ITEM.getKey(entry.getItem());
+                    String path = key.getPath().toLowerCase(); // Только часть после :
+                    if (path.contains(parsed.query)) {
+                        filtered.add(entry);
+                    }
+                }
+                break;
+
+            case MOD_ID:
+                // Поиск по MOD_ID (часть до :)
+                for (ItemEntry entry : items) {
+                    ResourceLocation key = BuiltInRegistries.ITEM.getKey(entry.getItem());
+                    String modId = key.getNamespace().toLowerCase();
+                    if (modId.contains(parsed.query)) {
+                        filtered.add(entry);
+                    }
+                }
+                break;
         }
 
         return filtered;
@@ -195,7 +286,7 @@ public class TestScreen extends Screen {
 
         if (selectedPlayer == null) return;
 
-        var allID = JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).getAllItemIDs();
+        var allID = JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).getAllItemID();
 
         for (String id : allID) {
             ResourceLocation location = ResourceLocation.tryParse(id);
@@ -244,7 +335,7 @@ public class TestScreen extends Screen {
 
         int buttonWidth = 150;
         int totalWidth = buttonWidth * 3 + BUTTON_SPACING * 2;
-        int startX = (getHeight() - totalWidth) / 2;
+        int startX = (getWidth() - totalWidth) / 2;
         int startY = 5;
 
         BlockButton = Button.builder(
@@ -286,20 +377,34 @@ public class TestScreen extends Screen {
         this.addRenderableWidget(SpecialSettingButton);
         this.addRenderableWidget(LogButton);
 
-        this.playerListScroll = new ScrollingPlayerList(getHeight() / 2 - 108 - 98, getHeight() / 2 - 94, 100, getHeight() / 2 + 20, this);
+        this.playerListScroll = new ScrollingPlayerList(getWidth() / 2 - 108 - 98, getHeight() / 2 - 94, 100, getHeight() / 2 + 20, this);
 
-        this.blockListScroll = new ScrollingBlockList(getHeight() / 2 - 102, getHeight() / 2 - 71, this.backgroundWidth - 15, this.backgroundHeight - 40, this);
-        this.itemListScroll = new ScrollingItemList(getHeight() / 2 - 102, getHeight() / 2 - 71, this.backgroundWidth - 15, this.backgroundHeight - 40, this);
+        this.blockListScroll = new ScrollingBlockList(getWidth() / 2 - 102, getHeight() / 2 - 71, this.backgroundWidth - 15, this.backgroundHeight - 40, this);
+        this.itemListScroll = new ScrollingItemList(getWidth() / 2 - 102, getHeight() / 2 - 71, this.backgroundWidth - 15, this.backgroundHeight - 40, this);
 
-        this.searchAllSelectBlock = new EditBox(getFontRender(), getHeight() / 2 - 100, getHeight() / 2 - 90, this.backgroundWidth - 19, 17, Component.literal("Поиск..."));
+        this.searchAllSelectObj = new EditBox(getFontRender(), getWidth() / 2 - 100, getHeight() / 2 - 90, this.backgroundWidth - 19, 17, Component.literal("Поиск... (:id | @modid)"));
 
         if (selectButton != null) {
             if (selectedPlayer != null) {
                 if (this.selectButton == ButtonSelect.BlockSetting) {
                     loadSelectBlockList();
 
-                    this.searchAllSelectBlock.setResponder(searchText -> {
+                    this.searchAllSelectObj.setResponder(searchText -> {
                         currentBlockSearchFilter = searchText;
+
+                        // Меняем цвет текста в зависимости от префикса
+                        if (searchText != null && !searchText.isEmpty()) {
+                            if (searchText.startsWith(":")) {
+                                searchAllSelectObj.setTextColor(0xFFFF55); // Жёлтый
+                            } else if (searchText.startsWith("@")) {
+                                searchAllSelectObj.setTextColor(0x55FFFF); // Голубой
+                            } else {
+                                searchAllSelectObj.setTextColor(0xFFFFFF); // Белый
+                            }
+                        } else {
+                            searchAllSelectObj.setTextColor(0xFFFFFF); // Белый
+                        }
+
                         updateBlockListWithFilter();
                     });
 
@@ -308,64 +413,88 @@ public class TestScreen extends Screen {
                             button -> {
                                 this.minecraft.setScreen(new TestAllBlockScreen(selectedPlayer, this));
                             }
-                    ).bounds(getHeight() / 2 + 105, getHeight() / 2 - 50, buttonWidth - 37, BUTTON_HEIGHT + 8).build());
+                    ).bounds(getWidth() / 2 + 105, getHeight() / 2 - 50, buttonWidth - 37, BUTTON_HEIGHT + 8).build());
 
                     addRenderableWidget(Button.builder(
-                            Component.literal("Запрет на установку: " + (JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).isDisablePlaceBlock() ? "§aВКЛ" : "§cВЫКЛ")),
+                            Component.literal("Запрет на установку: " + (JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).getDisablePlaceBlock() ? "§aВКЛ" : "§cВЫКЛ")),
                             button -> {
-                                boolean current = JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).isDisablePlaceBlock();
-                                JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).setDisablePlaceBlock(!current);
+                                boolean current = JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).getDisablePlaceBlock();
+                                JSONSettingCreate.SwitchGlobalDisablePlaceBlock(selectedPlayer.getUuid());
                                 button.setMessage(Component.literal("Запрет на установку: " + (!current ? "§aВКЛ" : "§cВЫКЛ")));
                             }
-                    ).bounds(getHeight() / 2 + 105, getHeight() / 2 - 18, buttonWidth - 37, BUTTON_HEIGHT + 3).build());
+                    ).bounds(getWidth() / 2 + 105, getHeight() / 2 - 18, buttonWidth - 37, BUTTON_HEIGHT + 3).build());
 
                     addRenderableWidget(Button.builder(
-                            Component.literal("Запрет на ломание: " + (JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).isDisableBreakBlock() ? "§aВКЛ" : "§cВЫКЛ")),
+                            Component.literal("Запрет на ломание: " + (JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).getDisableBreakBlock() ? "§aВКЛ" : "§cВЫКЛ")),
                             button -> {
-                                boolean current = JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).isDisableBreakBlock();
-                                JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).setDisableBreakBlock(!current);
+                                boolean current = JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).getDisableBreakBlock();
+                                JSONSettingCreate.SwitchGlobalDisableBreakBlock(selectedPlayer.getUuid());
                                 button.setMessage(Component.literal("Запрет на ломание: " + (!current ? "§aВКЛ" : "§cВЫКЛ")));
                             }
-                    ).bounds(getHeight() / 2 + 105, getHeight() / 2 + 12, buttonWidth - 37, BUTTON_HEIGHT + 3).build());
+                    ).bounds(getWidth() / 2 + 105, getHeight() / 2 + 12, buttonWidth - 37, BUTTON_HEIGHT + 3).build());
 
                     addRenderableWidget(Button.builder(
                             Component.literal("Close"),
                             button -> onClose()
-                    ).bounds(getHeight() / 2 + 105, getHeight() / 2 + 73, buttonWidth - 37, BUTTON_HEIGHT).build());
+                    ).bounds(getWidth() / 2 + 105, getHeight() / 2 + 73, buttonWidth - 37, BUTTON_HEIGHT).build());
 
-                    this.addRenderableWidget(searchAllSelectBlock);
+                    this.addRenderableWidget(searchAllSelectObj);
                     this.addRenderableWidget(blockListScroll);
                 }
                 else if (this.selectButton == ButtonSelect.ItemSetting) {
-                    ChaosManiaMod.LOGGER.info("1");
                     loadSelectItemList();
-                    ChaosManiaMod.LOGGER.info("2");
 
-                    this.searchAllSelectBlock.setResponder(searchText -> {
+                    this.searchAllSelectObj.setResponder(searchText -> {
                         currentItemSearchFilter = searchText;
+
+                        // Меняем цвет текста в зависимости от префикса
+                        if (searchText != null && !searchText.isEmpty()) {
+                            if (searchText.startsWith(":")) {
+                                searchAllSelectObj.setTextColor(0xFFFF55); // Жёлтый
+                            } else if (searchText.startsWith("@")) {
+                                searchAllSelectObj.setTextColor(0x55FFFF); // Голубой
+                            } else {
+                                searchAllSelectObj.setTextColor(0xFFFFFF); // Белый
+                            }
+                        } else {
+                            searchAllSelectObj.setTextColor(0xFFFFFF); // Белый
+                        }
+
                         updateItemListWithFilter();
                     });
-
-                    ChaosManiaMod.LOGGER.info("3");
 
                     addRenderableWidget(Button.builder(
                             Component.literal("Add Item"),
                             button -> {
                                 this.minecraft.setScreen(new TestAllItemScreen(selectedPlayer, this));
                             }
-                    ).bounds(getHeight() / 2 + 105, getHeight() / 2 - 50, buttonWidth - 37, BUTTON_HEIGHT + 8).build());
+                    ).bounds(getWidth() / 2 + 105, getHeight() / 2 - 50, buttonWidth - 37, BUTTON_HEIGHT + 8).build());
+
+                    addRenderableWidget(Button.builder(
+                            Component.literal("Запрет на выбрасывание: " + (JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).getDisableItemDrop() ? "§aВКЛ" : "§cВЫКЛ")),
+                            button -> {
+                                boolean current = JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).getDisableItemDrop();
+                                JSONSettingCreate.SwitchGlobalDisableItemDrop(selectedPlayer.getUuid());
+                                button.setMessage(Component.literal("Запрет на выбрасывание: " + (!current ? "§aВКЛ" : "§cВЫКЛ")));
+                            }
+                    ).bounds(getWidth() / 2 + 105, getHeight() / 2 - 18, buttonWidth - 37, BUTTON_HEIGHT + 3).build());
+
+                    addRenderableWidget(Button.builder(
+                            Component.literal("Запрет на подбор: " + (JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).getDisableItemPickup() ? "§aВКЛ" : "§cВЫКЛ")),
+                            button -> {
+                                boolean current = JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).getDisableItemPickup();
+                                JSONSettingCreate.SwitchGlobalDisableItemPickup(selectedPlayer.getUuid());
+                                button.setMessage(Component.literal("Запрет на подбор: " + (!current ? "§aВКЛ" : "§cВЫКЛ")));
+                            }
+                    ).bounds(getWidth() / 2 + 105, getHeight() / 2 + 12, buttonWidth - 37, BUTTON_HEIGHT + 3).build());
 
                     addRenderableWidget(Button.builder(
                             Component.literal("Close"),
                             button -> onClose()
-                    ).bounds(getHeight() / 2 + 105, getHeight() / 2 + 73, buttonWidth - 37, BUTTON_HEIGHT).build());
+                    ).bounds(getWidth() / 2 + 105, getHeight() / 2 + 73, buttonWidth - 37, BUTTON_HEIGHT).build());
 
-                    ChaosManiaMod.LOGGER.info("4");
-
-                    this.addRenderableWidget(searchAllSelectBlock);
+                    this.addRenderableWidget(searchAllSelectObj);
                     this.addRenderableWidget(itemListScroll);
-
-                    ChaosManiaMod.LOGGER.info("5");
                 }
             }
 
@@ -390,28 +519,28 @@ public class TestScreen extends Screen {
 
     @Override
     public void render(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        guiGraphics.fill(0, 0, getHeight(), getHeight(), 0xCC000000);
+        guiGraphics.fill(0, 0, getWidth(), getHeight(), 0xCC000000);
 
         if (selectButton == null) {
             String Title = "§lВыберите категорию возможностей §r";
             guiGraphics.drawString(
                     this.font,
                     Component.literal(Title),
-                    getHeight() / 2 - this.font.width(Title) / 2,
+                    getWidth() / 2 - this.font.width(Title) / 2,
                     getHeight() / 2,
                     0xE1A12D,
                     false
             );
         } else {
-            guiGraphics.blit(BACKGROUND_TEXTURE, getHeight() / 2 + 75, getHeight() / 2 - 155 / 2, 0, 0, 150, 180, 150, 180);
-            guiGraphics.blit(BACKGROUND_TEXTURE, getHeight() / 2 - 108, getHeight() / 2 - 100, 0, 0, this.backgroundWidth, this.backgroundHeight, this.backgroundWidth, this.backgroundHeight);
+            guiGraphics.blit(BACKGROUND_TEXTURE, getWidth() / 2 + 75, getHeight() / 2 - 155 / 2, 0, 0, 150, 180, 150, 180);
+            guiGraphics.blit(BACKGROUND_TEXTURE, getWidth() / 2 - 108, getHeight() / 2 - 100, 0, 0, this.backgroundWidth, this.backgroundHeight, this.backgroundWidth, this.backgroundHeight);
 
             if (selectedPlayer == null) {
                 String Title = "§lВыберите игрока §r";
                 guiGraphics.drawString(
                         this.font,
                         Component.literal(Title),
-                        getHeight() / 2 - this.font.width(Title) / 2,
+                        getWidth() / 2 - this.font.width(Title) / 2,
                         getHeight() / 2,
                         0x7F7D7A,
                         false
@@ -421,7 +550,7 @@ public class TestScreen extends Screen {
                 guiGraphics.drawString(
                         this.font,
                         Component.literal(Title),
-                        getHeight() / 2 - this.font.width(Title) / 2 + 123,
+                        getWidth() / 2 - this.font.width(Title) / 2 + 123,
                         getHeight() / 2 - 65,
                         0xE1A12D,
                         false
@@ -429,31 +558,7 @@ public class TestScreen extends Screen {
             }
         }
 
-        if (selectButton == ButtonSelect.BlockSetting && selectedPlayer != null && !currentBlockSearchFilter.isEmpty() && allBlocksMasterList != null) {
-            int resultsCount = blockListScroll != null ? blockListScroll.children().size() : 0;
-            String info = String.format("Найдено: %d / %d", resultsCount, allBlocksMasterList.size());
-            guiGraphics.drawString(
-                    this.font,
-                    info,
-                    getHeight() / 2 - 100,
-                    getHeight() / 2 - 105,
-                    0xAAAAAA,
-                    false
-            );
-        }
 
-        if (selectButton == ButtonSelect.ItemSetting && selectedPlayer != null && !currentItemSearchFilter.isEmpty() && allItemsMasterList != null) {
-            int resultsCount = itemListScroll != null ? itemListScroll.children().size() : 0;
-            String info = String.format("Найдено: %d / %d", resultsCount, allItemsMasterList.size());
-            guiGraphics.drawString(
-                    this.font,
-                    info,
-                    getHeight() / 2 - 100,
-                    getHeight() / 2 - 105,
-                    0xAAAAAA,
-                    false
-            );
-        }
 
         super.render(guiGraphics, mouseX, mouseY, partialTick);
     }
@@ -502,8 +607,8 @@ public class TestScreen extends Screen {
         selectedPlayer = player;
         currentBlockSearchFilter = "";
         currentItemSearchFilter = "";
-        if (searchAllSelectBlock != null) {
-            searchAllSelectBlock.setValue("");
+        if (searchAllSelectObj != null) {
+            searchAllSelectObj.setValue("");
         }
         this.init();
     }
@@ -653,7 +758,7 @@ public class TestScreen extends Screen {
 
         @Override
         protected int getScrollbarPosition() {
-            return this.getX() + getHeight() - 6;
+            return this.getX() + this.width - 6;
         }
 
         void updateEntries(List<BlockEntry> blocks) {
@@ -673,40 +778,25 @@ public class TestScreen extends Screen {
                 this.parent = parent;
                 this.block = block;
 
-                // Создаем нормальную кнопку
                 this.DisableplaceItemButton = Button.builder(
-                        Component.literal(!JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).canPlaceBlock(BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString()) ? "✖" : "✔"),
-                        button -> {
-                            button.setMessage(Component.literal(!JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).canPlaceBlock(BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString()) ? "✖" : "✔"));
-                            IsPlaceSetting();
-                        }
-                ).bounds(0, 0, 20, 20)
+                                Component.literal(!JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).canPlaceBlock(BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString()) ? "✖" : "✔"),
+                                button -> {
+                                    JSONSettingCreate.SwitchDisablePlaceBlock(selectedPlayer.getUuid(), BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString());
+                                    button.setMessage(Component.literal(!JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).canPlaceBlock(BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString()) ? "✖" : "✔"));
+                                }
+                        ).bounds(0, 0, 20, 20)
                         .tooltip(Tooltip.create(Component.literal("Запретить устанавливать блоки")))
                         .build();
 
                 this.DisableBreakItemButton = Button.builder(
-                        Component.literal( !JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).canBreakBlock(BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString()) ? "✖" : "✔"),
-                        button -> {
-                            button.setMessage(Component.literal( !JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).canBreakBlock(BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString()) ? "✖" : "✔"));
-                            onBreakClick();
-                        }
-                ).bounds(0, 0, 20, 20)
+                                Component.literal(!JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).canBreakBlock(BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString()) ? "✖" : "✔"),
+                                button -> {
+                                    JSONSettingCreate.SwitchDisableBreakBlock(selectedPlayer.getUuid(), BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString());
+                                    button.setMessage(Component.literal(!JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).canBreakBlock(BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString()) ? "✖" : "✔"));
+                                }
+                        ).bounds(0, 0, 20, 20)
                         .tooltip(Tooltip.create(Component.literal("Запретить ломать блоки")))
                         .build();
-            }
-
-            private void IsPlaceSetting() {
-                if (parent.minecraft != null && parent.minecraft.player != null && selectedPlayer != null) {
-                    JSONSettingCreate.SwitchDisablePlaceBlock(selectedPlayer.getUuid() , BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString());
-                    parent.updateItemListWithFilter();
-                }
-            }
-
-            private void onBreakClick() {
-                if (parent.minecraft != null && parent.minecraft.player != null && selectedPlayer != null) {
-                    JSONSettingCreate.SwitchDisableBreakBlock(selectedPlayer.getUuid() , BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString());
-                    parent.updateBlockListWithFilter();
-                }
             }
 
             @Override
@@ -736,7 +826,6 @@ public class TestScreen extends Screen {
                 }
                 guiGraphics.drawString(font, idString, left + 28, top + 23, 0x888888, false);
 
-                // Позиционируем кнопку справа
                 int buttonWidth = 20;
                 int buttonHeight = 20;
                 int buttonX = left + width - buttonWidth - 35;
@@ -748,14 +837,12 @@ public class TestScreen extends Screen {
                 DisableBreakItemButton.setX(buttonX + 25);
                 DisableBreakItemButton.setY(buttonY);
 
-                // Рендерим кнопку
                 DisableplaceItemButton.render(guiGraphics, mouseX, mouseY, partialTick);
                 DisableBreakItemButton.render(guiGraphics, mouseX, mouseY, partialTick);
             }
 
             @Override
             public boolean mouseClicked(double mouseX, double mouseY, int button) {
-                // Сначала проверяем клик по кнопке
                 if (DisableplaceItemButton.mouseClicked(mouseX, mouseY, button)) {
                     return true;
                 }
@@ -770,7 +857,6 @@ public class TestScreen extends Screen {
             public @NotNull Component getNarration() {
                 return Component.literal(block.getName());
             }
-
         }
     }
 
@@ -805,53 +891,32 @@ public class TestScreen extends Screen {
             private final TestScreen parent;
             private final ItemEntry item;
             private final Button DisableDropItemButton;
-            private final Button DisablePikupItemButton;
+            private final Button DisablePickupItemButton;
 
             ItemSlot(TestScreen parent, ItemEntry item) {
                 this.parent = parent;
                 this.item = item;
 
-                // Создаем нормальную кнопку
                 this.DisableDropItemButton = Button.builder(
-                        Component.literal(!JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).canDropItem(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "✖" : "✔"),
-                        button ->
-                        {
-                            button.setMessage(Component.literal(!JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).canDropItem(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "✖" : "✔"));
-                            IsDropSetting();
-                        }
-                ).bounds(0, 0, 20, 20)
+                                Component.literal(!JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).canDropItem(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "✖" : "✔"),
+                                button -> {
+                                    JSONSettingCreate.SwitchDisableItemDrop(selectedPlayer.getUuid(), BuiltInRegistries.ITEM.getKey(item.getItem()).toString());
+                                    button.setMessage(Component.literal(!JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).canDropItem(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "✖" : "✔"));
+                                }
+                        ).bounds(0, 0, 20, 20)
                         .tooltip(Tooltip.create(Component.literal("Запретить выбрасывать предмет")))
                         .build();
 
-
-                this.DisablePikupItemButton = Button.builder(
+                this.DisablePickupItemButton = Button.builder(
                                 Component.literal(!JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).canPickupItem(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "✖" : "✔"),
                                 button -> {
+                                    JSONSettingCreate.SwitchDisableItemPickup(selectedPlayer.getUuid(), BuiltInRegistries.ITEM.getKey(item.getItem()).toString());
                                     button.setMessage(Component.literal(!JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).canPickupItem(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "✖" : "✔"));
-                                    IsPickupSetting();
                                 }
                         ).bounds(0, 0, 20, 20)
                         .tooltip(Tooltip.create(Component.literal("Запретить подбирать предмет")))
                         .build();
             }
-
-            private void IsDropSetting() {
-                if (parent.minecraft != null && parent.minecraft.player != null && selectedPlayer != null) {
-                    JSONSettingCreate.SwitchDisableItemDrop(selectedPlayer.getUuid() , BuiltInRegistries.ITEM.getKey(item.getItem()).toString());
-                    //JSONSettingCreate.RemoveItemElement(selectedPlayer.getUuid(), item.getItem());
-                    parent.updateItemListWithFilter();
-                }
-            }
-
-            private void IsPickupSetting() {
-                if (parent.minecraft != null && parent.minecraft.player != null && selectedPlayer != null) {
-                    JSONSettingCreate.SwitchDisableItemPickup(selectedPlayer.getUuid() , BuiltInRegistries.ITEM.getKey(item.getItem()).toString());
-                    //JSONSettingCreate.RemoveItemElement(selectedPlayer.getUuid(), item.getItem());
-                    parent.updateItemListWithFilter();
-                }
-            }
-
-
 
             @Override
             public void render(@NotNull GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean hovered, float partialTick) {
@@ -880,7 +945,6 @@ public class TestScreen extends Screen {
                 }
                 guiGraphics.drawString(font, idString, left + 28, top + 23, 0x888888, false);
 
-                // Позиционируем кнопку справа
                 int buttonWidth = 20;
                 int buttonHeight = 20;
                 int buttonX = left + width - buttonWidth - 35;
@@ -889,21 +953,19 @@ public class TestScreen extends Screen {
                 DisableDropItemButton.setX(buttonX);
                 DisableDropItemButton.setY(buttonY);
 
-                DisablePikupItemButton.setX(buttonX + 25);
-                DisablePikupItemButton.setY(buttonY);
+                DisablePickupItemButton.setX(buttonX + 25);
+                DisablePickupItemButton.setY(buttonY);
 
-                // Рендерим кнопки
                 DisableDropItemButton.render(guiGraphics, mouseX, mouseY, partialTick);
-                DisablePikupItemButton.render(guiGraphics, mouseX, mouseY, partialTick);
+                DisablePickupItemButton.render(guiGraphics, mouseX, mouseY, partialTick);
             }
 
             @Override
             public boolean mouseClicked(double mouseX, double mouseY, int button) {
-                // Сначала проверяем клик по кнопке
                 if (DisableDropItemButton.mouseClicked(mouseX, mouseY, button)) {
                     return true;
                 }
-                else if (DisablePikupItemButton.mouseClicked(mouseX ,mouseY , button))
+                else if (DisablePickupItemButton.mouseClicked(mouseX, mouseY, button))
                 {
                     return true;
                 }
@@ -916,4 +978,5 @@ public class TestScreen extends Screen {
             }
         }
     }
+
 }

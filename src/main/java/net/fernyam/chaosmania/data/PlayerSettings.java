@@ -12,11 +12,10 @@ import java.util.UUID;
 
 public class PlayerSettings {
 
-    public static class ItemSetting {
-        public final String idItem;
-        public boolean canDrop;    // Может ли предмет выпадать
-        public boolean canPickup;  // Можно ли подбирать предмет
-
+    private static class ItemSetting {
+        private final String idItem;
+        private boolean canDrop;
+        private boolean canPickup;
 
         public ItemSetting(String idItem, boolean canDrop, boolean canPickup) {
             this.idItem = idItem;
@@ -27,27 +26,38 @@ public class PlayerSettings {
         public ItemSetting(String idItem) {
             this(idItem, false, false);
         }
+
+        public String getIdItem() { return idItem; }
+        public boolean canDrop() { return canDrop; }
+        public boolean canPickup() { return canPickup; }
+        public void setDrop(boolean canDrop) { this.canDrop = canDrop; }
+        public void setPickup(boolean canPickup) { this.canPickup = canPickup; }
+        public void toggleDrop() { this.canDrop = !this.canDrop; }
+        public void togglePickup() { this.canPickup = !this.canPickup; }
     }
 
-    private static class BlockSetting
-    {
-        String idBlock;
-        boolean isPlaceBlock;
-        boolean isBreakBlock;
+    private static class BlockSetting {
+        private final String idBlock;
+        private boolean canPlace;
+        private boolean canBreak;
 
-        public BlockSetting(String id , boolean isPlaceBlock , boolean isBreakBlock)
-        {
+        public BlockSetting(String id, boolean canPlace, boolean canBreak) {
             this.idBlock = id;
-            this.isPlaceBlock = isPlaceBlock;
-            this.isBreakBlock = isBreakBlock;
+            this.canPlace = canPlace;
+            this.canBreak = canBreak;
         }
 
-        public BlockSetting(String id)
-        {
-            this.idBlock = id;
-            isPlaceBlock = false;
-            isBreakBlock = false;
+        public BlockSetting(String id) {
+            this(id, false, false);
         }
+
+        public String getIdBlock() { return idBlock; }
+        public boolean canPlace() { return canPlace; }
+        public boolean canBreak() { return canBreak; }
+        public void setPlace(boolean canPlace) { this.canPlace = canPlace; }
+        public void setBreak(boolean canBreak) { this.canBreak = canBreak; }
+        public void togglePlace() { this.canPlace = !this.canPlace; }
+        public void toggleBreak() { this.canBreak = !this.canBreak; }
     }
 
     private String name;
@@ -55,16 +65,11 @@ public class PlayerSettings {
 
     private boolean isDisablePlaceBlock;
     private boolean isDisableBreakBlock;
-    private List<String> dontPlaceBlockList;
-    private List<String> dontBreakBlockList;
-
     private List<BlockSetting> blockSettings;
-    private List<ItemSetting> itemSettings;
 
     private  boolean isDisableItemDrop;
     private  boolean isDisableItemPickup;
-    private List<String> dontDropItemList;
-    private List<String> dontPuckupItemList;
+    private List<ItemSetting> itemSettings;
 
 //    private boolean isDisablePlantingSeed;
 //    private boolean isDisableVillagerTrading;
@@ -72,160 +77,6 @@ public class PlayerSettings {
 
     // Конструктор по умолчанию (нужен для Gson)
     public PlayerSettings() {}
-
-    // Конструктор для удобного создания
-    public PlayerSettings(String name, UUID uuidPlayer,
-                          boolean isDisablePlaceBlock, boolean isDisableBreakBlock,
-                          List<String> dontPlaceBlockList, List<String> dontBreakBlockList ,
-                          boolean isDisableItemDrop, boolean isDisableItemPickup ,
-                          List<String> dontDropItemList , List<String> dontPuckupItemList )
-    {
-        this.name = name;
-        this.uuidPlayer = uuidPlayer.toString();
-
-        this.isDisablePlaceBlock = isDisablePlaceBlock;
-        this.isDisableBreakBlock = isDisableBreakBlock;
-        this.dontPlaceBlockList = dontPlaceBlockList;
-        this.dontBreakBlockList = dontBreakBlockList;
-
-        this.isDisableItemDrop = isDisableItemDrop;
-        this.isDisableItemPickup = isDisableItemPickup;
-
-        this.dontDropItemList = dontDropItemList;
-        this.dontPuckupItemList = dontPuckupItemList;
-
-    }
-
-    public PlayerSettings(String name, String uuidPlayer,
-                          boolean isDisablePlaceBlock, boolean isDisableBreakBlock,
-                          List<String> dontPlaceBlockList, List<String> dontBreakBlockList ,
-                          boolean isDisableItemDrop, boolean isDisableItemPickup ,
-                          List<String> dontDropItemList , List<String> dontPuckupItemList) {
-        this.name = name;
-        this.uuidPlayer = uuidPlayer;
-
-        this.isDisablePlaceBlock = isDisablePlaceBlock;
-        this.isDisableBreakBlock = isDisableBreakBlock;
-        this.dontPlaceBlockList = dontPlaceBlockList;
-        this.dontBreakBlockList = dontBreakBlockList;
-
-        this.isDisableItemDrop = isDisableItemDrop;
-        this.isDisableItemPickup = isDisableItemPickup;
-
-        this.dontDropItemList = dontDropItemList;
-        this.dontPuckupItemList = dontPuckupItemList;
-    }
-
-
-    // Геттеры и сеттеры
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-
-    public String getUuidPlayer() { return uuidPlayer; }
-    public void setUuidPlayer(UUID uuidPlayer) { this.uuidPlayer = uuidPlayer.toString(); }
-
-    public boolean isDisablePlaceBlock() { return isDisablePlaceBlock; }
-    public void setDisablePlaceBlock(boolean disablePlaceBlock) { isDisablePlaceBlock = disablePlaceBlock; }
-
-    public boolean isDisableBreakBlock() { return isDisableBreakBlock; }
-    public void setDisableBreakBlock(boolean disableBreakBlock) { isDisableBreakBlock = disableBreakBlock; }
-
-    public List<String> getDontPlaceBlockList() { return dontPlaceBlockList; }
-    public void setDontPlaceBlockList(List<String> dontPlaceBlockList) { this.dontPlaceBlockList = dontPlaceBlockList; }
-
-    public List<String> getDontBreakBlockList() { return dontBreakBlockList; }
-    public void setDontBreakBlockList(List<String> dontBreakBlockList) { this.dontBreakBlockList = dontBreakBlockList; }
-
-
-    public boolean isDisableItemDrop() {
-        return isDisableItemDrop;
-    }
-
-    public void setDisableItemDrop(boolean disableItemItemDrop) {
-        isDisableItemDrop = disableItemItemDrop;
-    }
-
-    public boolean isDisableItemPickup() {
-        return isDisableItemPickup;
-    }
-
-    public void setDisableItemPickup(boolean disableItemPickup) {
-        isDisableItemPickup = disableItemPickup;
-    }
-
-//    public void setDisablePlantingSeed(boolean disablePlantingSeed) {
-//        isDisablePlantingSeed = disablePlantingSeed;
-//    }
-//
-//    public void setDisableVillagerTrading(boolean disableVillagerTrading) {
-//        isDisableVillagerTrading = disableVillagerTrading;
-//    }
-
-    public List<String> getDontDropItemList() {
-        return dontDropItemList;
-    }
-
-    public void setDontDropItemList(List<String> dontDropItemList) {
-        this.dontDropItemList = dontDropItemList;
-    }
-
-    public List<String> getDontPuckupItemList() {
-        return dontPuckupItemList;
-    }
-
-    public void setDontPuckupItemList(List<String> dontPuckupItemList) {
-        this.dontPuckupItemList = dontPuckupItemList;
-    }
-
-
-    public void AddElementToDontBreakBlockList(Block block)
-    {
-        if(dontBreakBlockList.contains(BuiltInRegistries.BLOCK.getKey(block).toString())) return;
-        dontBreakBlockList.add(BuiltInRegistries.BLOCK.getKey(block).toString());
-    }
-
-    public void RemoveElementToDontBreakBlockList(Block block)
-    {
-        dontBreakBlockList.remove(BuiltInRegistries.BLOCK.getKey(block).toString());
-    }
-
-    public void AddElementToDontPlaceBlockList(Block block)
-    {
-        if(dontPlaceBlockList.contains(BuiltInRegistries.BLOCK.getKey(block).toString())) return;
-        dontPlaceBlockList.add(BuiltInRegistries.BLOCK.getKey(block).toString());
-    }
-
-    public void RemoveElementToDontPlaceBlockList(Block block)
-    {
-        dontPlaceBlockList.remove(BuiltInRegistries.BLOCK.getKey(block).toString());
-    }
-
-    public void AddElementToDontDropItemList(Item item)
-    {
-        if(dontDropItemList.contains(BuiltInRegistries.ITEM.getKey(item).toString())) return;
-        dontDropItemList.add(BuiltInRegistries.ITEM.getKey(item).toString());
-    }
-
-    public void RemoveElementToDontDropItemList(Item item)
-    {
-        dontDropItemList.remove(BuiltInRegistries.ITEM.getKey(item).toString());
-    }
-
-    public void AddElementToDontPuckupItemList(Item item)
-    {
-        if(dontPuckupItemList.contains(BuiltInRegistries.ITEM.getKey(item).toString())) return;
-        dontPuckupItemList.add(BuiltInRegistries.ITEM.getKey(item).toString());
-    }
-
-    public void RemoveElementToDontPuckupItemList(Item item)
-    {
-        dontPuckupItemList.remove(BuiltInRegistries.ITEM.getKey(item).toString());
-    }
-
-
-
-    //=================================================================================
-
 
     public PlayerSettings(String name, String uuidPlayer) {
         this.name = name;
@@ -252,215 +103,195 @@ public class PlayerSettings {
     }
 
 
+    // ==================== Геттеры и сеттеры ====================
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
 
-    public void addBlockElement(Block block)
-    {
+    public String getUuidPlayer() { return uuidPlayer; }
+    public void setUuidPlayer(String uuidPlayer) { this.uuidPlayer = uuidPlayer; }
+    public void setUuidPlayer(UUID uuidPlayer) { this.uuidPlayer = uuidPlayer.toString(); }
+
+    public List<BlockSetting> getBlockSettings() { return blockSettings; }
+    public List<ItemSetting> getItemSettings() { return itemSettings; }
+
+    public void setDisablePlaceBlock(boolean disablePlaceBlock) { isDisablePlaceBlock = disablePlaceBlock; }
+    public void setDisableBreakBlock(boolean disableBreakBlock) { isDisableBreakBlock = disableBreakBlock;  }
+
+    public void setDisableItemDrop(boolean disableItemDrop) { isDisableItemDrop = disableItemDrop; }
+    public void setDisableItemPickup(boolean disableItemPickup) { isDisableItemPickup = disableItemPickup; }
+
+    public void toggleDisablePlaceBlock() { isDisablePlaceBlock = !isDisablePlaceBlock; }
+    public void toggleDisableBreakBlock() { isDisableBreakBlock = !isDisableBreakBlock;  }
+
+    public void toggleDisableItemDrop() { isDisableItemDrop = !isDisableItemDrop; }
+    public void toggleDisableItemPickup() { isDisableItemPickup = !isDisableItemPickup; }
+
+
+
+
+    public boolean getDisablePlaceBlock() { return isDisablePlaceBlock; }
+    public boolean getDisableBreakBlock() { return isDisableBreakBlock;  }
+
+    public boolean getDisableItemDrop() { return isDisableItemDrop; }
+    public boolean getDisableItemPickup() { return isDisableItemPickup; }
+
+    //    public void setDisablePlantingSeed(boolean disablePlantingSeed) {
+//        isDisablePlantingSeed = disablePlantingSeed;
+//    }
+//
+//    public void setDisableVillagerTrading(boolean disableVillagerTrading) {
+//        isDisableVillagerTrading = disableVillagerTrading;
+//    }
+
+
+// ==================== Работа с блоками ====================
+
+    private BlockSetting getOrCreateBlockSetting(String id) {
+        for (BlockSetting setting : blockSettings) {
+            if (setting.getIdBlock().equals(id)) {
+                return setting;
+            }
+        }
+        BlockSetting newSetting = new BlockSetting(id);
+        blockSettings.add(newSetting);
+        return newSetting;
+    }
+
+    public void addBlockElement(Block block) {
         String id = BuiltInRegistries.BLOCK.getKey(block).toString();
-
-        if (!isBlockExists(id))
-        {
+        if (!isBlockExists(id)) {
             blockSettings.add(new BlockSetting(id));
         }
     }
 
-    public void addBlockElement(String id, boolean isPlace, boolean isBreak)
-    {
-
-        if (!isBlockExists(id))
-        {
-            blockSettings.add(new BlockSetting(id, isPlace, isBreak));
+    public void addBlockElement(String id, boolean canPlace, boolean canBreak) {
+        if (!isBlockExists(id)) {
+            blockSettings.add(new BlockSetting(id, canPlace, canBreak));
         }
     }
 
-    // Вспомогательный метод для проверки существования блока
-    public boolean isBlockExists(String id)
-    {
-        for (BlockSetting setting : blockSettings)
-        {
-            if (setting.idBlock.equals(id))
-            {
-                return true;
-            }
-        }
-        return false;
+    public boolean isBlockExists(String id) {
+        return blockSettings.stream().anyMatch(setting -> setting.getIdBlock().equals(id));
     }
 
-    public void RemoveBlockElement(Block block)
-    {
+    public void removeBlockElement(Block block) {
         String id = BuiltInRegistries.BLOCK.getKey(block).toString();
-
-        blockSettings.removeIf(setting -> setting.idBlock.equals(id));
+        blockSettings.removeIf(setting -> setting.getIdBlock().equals(id));
     }
 
-    public void SetSettingPlaceToElementBlock(String id , boolean isPlace)
+    public void toggleBlockPlace(String id) {
+        getOrCreateBlockSetting(id).togglePlace();
+    }
+
+    public void toggleBlockBreak(String id) {
+        getOrCreateBlockSetting(id).toggleBreak();
+    }
+
+    public boolean canPlaceBlock(String id) {
+        return blockSettings.stream()
+                .filter(setting -> setting.getIdBlock().equals(id))
+                .findFirst()
+                .map(BlockSetting::canPlace)
+                .orElse(false);
+    }
+
+    public boolean canBreakBlock(String id) {
+        return blockSettings.stream()
+                .filter(setting -> setting.getIdBlock().equals(id))
+                .findFirst()
+                .map(BlockSetting::canBreak)
+                .orElse(false);
+    }
+
+    public List<String> getAllBlockID()
     {
-        for (BlockSetting setting : blockSettings)
+        List<String> listId = new ArrayList<>();
+
+        for(BlockSetting settingBlock : blockSettings)
         {
-            if (setting.idBlock.equals(id))
-            {
-                setting.isPlaceBlock = isPlace;
-                return;
+            listId.add(settingBlock.getIdBlock());
+        }
+
+        return listId;
+    }
+
+
+    // ==================== Работа с предметами ====================
+
+    private ItemSetting getOrCreateItemSetting(String id) {
+        for (ItemSetting setting : itemSettings) {
+            if (setting.getIdItem().equals(id)) {
+                return setting;
             }
         }
+        ItemSetting newSetting = new ItemSetting(id);
+        itemSettings.add(newSetting);
+        return newSetting;
     }
 
-    public void SetSettingBreakToElementBlock(String id , boolean isBreak)
-    {
-        for (BlockSetting setting : blockSettings)
-        {
-            if (setting.idBlock.equals(id))
-            {
-                setting.isBreakBlock = isBreak;
-                return;
-            }
-        }
-    }
-
-    public boolean canPlaceBlock(String id)
-    {
-        for (BlockSetting setting : blockSettings)
-        {
-            if (setting.idBlock.equals(id))
-            {
-                return setting.isPlaceBlock;
-            }
-        }
-        return false;
-    }
-
-    public boolean canBreakBlock(String id)
-    {
-        for (BlockSetting setting : blockSettings)
-        {
-            if (setting.idBlock.equals(id))
-            {
-                return setting.isBreakBlock;
-            }
-        }
-        return false;
-    }
-
-    public void updateBlockElement(String id, boolean isPlace, boolean isBreak)
-    {
-        for (BlockSetting setting : blockSettings)
-        {
-            if (setting.idBlock.equals(id))
-            {
-                setting.isPlaceBlock = isPlace;
-                setting.isBreakBlock = isBreak;
-                return;
-            }
-        }
-        // Если не найден, добавляем новый
-        blockSettings.add(new BlockSetting(id, isPlace, isBreak));
-    }
-
-    public List<String> GetAllID()
-    {
-        List<String> arrayID = new ArrayList<>();
-        for (BlockSetting blockSetting : blockSettings)
-        {
-            arrayID.add(blockSetting.idBlock);
-        }
-        return arrayID;
-    }
-
-
-
-
-    public void addItemElement(Item item)
-    {
+    public void addItemElement(Item item) {
         String id = BuiltInRegistries.ITEM.getKey(item).toString();
-
-        if (!isItemExists(id))
-        {
+        if (!isItemExists(id)) {
             itemSettings.add(new ItemSetting(id));
         }
     }
 
-    public void addItemElement(String id, boolean canDrop, boolean canPickup)
-    {
-        if (!isItemExists(id))
-        {
+    public void addItemElement(String id, boolean canDrop, boolean canPickup) {
+        if (!isItemExists(id)) {
             itemSettings.add(new ItemSetting(id, canDrop, canPickup));
         }
     }
 
-    // Вспомогательный метод для проверки существования предмета
-    public boolean isItemExists(String id)
-    {
-        for (ItemSetting setting : itemSettings)
-        {
-            if (setting.idItem.equals(id))
-            {
-                return true;
-            }
-        }
-        return false;
+    public boolean isItemExists(String id) {
+        return itemSettings.stream().anyMatch(setting -> setting.getIdItem().equals(id));
     }
 
-    public void removeItemElement(Item item)
-    {
+    public void removeItemElement(Item item) {
         String id = BuiltInRegistries.ITEM.getKey(item).toString();
-
-        itemSettings.removeIf(setting -> setting.idItem.equals(id));
+        itemSettings.removeIf(setting -> setting.getIdItem().equals(id));
     }
 
-    public void setSettingDropToElementItem(String id, boolean canDrop)
-    {
-        for (ItemSetting setting : itemSettings)
-        {
-            if (setting.idItem.equals(id))
-            {
-                setting.canDrop = canDrop;
-                return;
-            }
-        }
+    public void setItemDropSetting(String id, boolean canDrop) {
+        getOrCreateItemSetting(id).setDrop(canDrop);
     }
 
-    public void setSettingPickupToElementItem(String id, boolean canPickup)
-    {
-        for (ItemSetting setting : itemSettings)
-        {
-            if (setting.idItem.equals(id))
-            {
-                setting.canPickup = canPickup;
-                return;
-            }
-        }
+    public void setItemPickupSetting(String id, boolean canPickup) {
+        getOrCreateItemSetting(id).setPickup(canPickup);
     }
 
-    public boolean canDropItem(String id)
-    {
-        for (ItemSetting setting : itemSettings)
-        {
-            if (setting.idItem.equals(id))
-            {
-                return setting.canDrop;
-            }
-        }
-        return false; // По умолчанию предметы могут выпадать
+    public void toggleItemDrop(String id) {
+        getOrCreateItemSetting(id).toggleDrop();
     }
 
-    public boolean canPickupItem(String id)
-    {
-        for (ItemSetting setting : itemSettings)
-        {
-            if (setting.idItem.equals(id))
-            {
-                return setting.canPickup;
-            }
-        }
-        return false; // По умолчанию предметы можно подбирать
+    public void toggleItemPickup(String id) {
+        getOrCreateItemSetting(id).togglePickup();
     }
 
-    public List<String> getAllItemIDs()
+    public boolean canDropItem(String id) {
+        return itemSettings.stream()
+                .filter(setting -> setting.getIdItem().equals(id))
+                .findFirst()
+                .map(ItemSetting::canDrop)
+                .orElse(false);
+    }
+
+    public boolean canPickupItem(String id) {
+        return itemSettings.stream()
+                .filter(setting -> setting.getIdItem().equals(id))
+                .findFirst()
+                .map(ItemSetting::canPickup)
+                .orElse(false);
+    }
+
+    public List<String> getAllItemID()
     {
-        List<String> arrayID = new ArrayList<>();
-        for (ItemSetting itemSetting : itemSettings)
+        List<String> listId = new ArrayList<>();
+
+        for(ItemSetting settingItem : itemSettings)
         {
-            arrayID.add(itemSetting.idItem);
+            listId.add(settingItem.getIdItem());
         }
-        return arrayID;
+
+        return listId;
     }
 }

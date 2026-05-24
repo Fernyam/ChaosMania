@@ -21,22 +21,22 @@ public class PlantingSeedsEvent
             TagKey.create(Registries.ITEM, ResourceLocation.parse("c:seeds"));
 
     public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
-        if(!ConfigMod.DISABLE_SEED_PLANTING.get()) return;
-
-        if (event.getSide().isClient()) {
-            return;
-        }
-
-        ItemStack itemStack = event.getItemStack();
-        BlockState targetBlock = event.getLevel().getBlockState(event.getPos());
-
-        if(!itemStack.isEmpty() && !targetBlock.isEmpty())
-        {
-            if (targetBlock.is(Blocks.FARMLAND) && itemStack.is(C_SEEDS)) {
-                event.setCanceled(true);
-                event.setCancellationResult(net.minecraft.world.InteractionResult.FAIL);
-            }
-        }
+//        if(!ConfigMod.DISABLE_SEED_PLANTING.get()) return;
+//
+//        if (event.getSide().isClient()) {
+//            return;
+//        }
+//
+//        ItemStack itemStack = event.getItemStack();
+//        BlockState targetBlock = event.getLevel().getBlockState(event.getPos());
+//
+//        if(!itemStack.isEmpty() && !targetBlock.isEmpty())
+//        {
+//            if (targetBlock.is(Blocks.FARMLAND) && itemStack.is(C_SEEDS)) {
+//                event.setCanceled(true);
+//                event.setCancellationResult(net.minecraft.world.InteractionResult.FAIL);
+//            }
+//        }
     }
 
 }

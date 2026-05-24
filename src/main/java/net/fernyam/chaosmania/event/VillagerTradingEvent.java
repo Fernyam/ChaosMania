@@ -9,34 +9,34 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 public class VillagerTradingEvent {
 
     public static void onEntityInteract(PlayerInteractEvent.EntityInteract event) {
-        if (ConfigMod.DISABLE_VILLAGER_TRADING.get())
-        {
-            if (event.getTarget() instanceof Villager)
-            {
-                event.setCanceled(true);
-            }
-        }
-
-        if(ConfigMod.DISABLE_WANDER_TRADING.get())
-        {
-            if (event.getTarget() instanceof WanderingTrader)
-            {
-                event.setCanceled(true);
-            }
-        }
-
+//        if (ConfigMod.DISABLE_VILLAGER_TRADING.get())
+//        {
+//            if (event.getTarget() instanceof Villager)
+//            {
+//                event.setCanceled(true);
+//            }
+//        }
+//
+//        if(ConfigMod.DISABLE_WANDER_TRADING.get())
+//        {
+//            if (event.getTarget() instanceof WanderingTrader)
+//            {
+//                event.setCanceled(true);
+//            }
+//        }
+//
 
     }
 
     public static void onPlayerTick(PlayerTickEvent.Post event) {
-        if (!ConfigMod.DISABLE_VILLAGER_TRADING.get() || !ConfigMod.DISABLE_WANDER_TRADING.get()) {
-            return;
-        }
-
-        // Если игрок в GUI торговли
-        if (event.getEntity().containerMenu instanceof net.minecraft.world.inventory.MerchantMenu)
-        {
-            event.getEntity().closeContainer();
-        }
+//        if (!ConfigMod.DISABLE_VILLAGER_TRADING.get() || !ConfigMod.DISABLE_WANDER_TRADING.get()) {
+//            return;
+//        }
+//
+//        // Если игрок в GUI торговли
+//        if (event.getEntity().containerMenu instanceof net.minecraft.world.inventory.MerchantMenu)
+//        {
+//            event.getEntity().closeContainer();
+//        }
     }
 }

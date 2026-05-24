@@ -1,14 +1,11 @@
 package net.fernyam.chaosmania.gui.custom.custom2;
 
 import net.fernyam.chaosmania.data.JSONSettingCreate;
-import net.fernyam.chaosmania.gui.custom.AllBlocksScreen;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.ObjectSelectionList;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
@@ -22,8 +19,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 import static net.fernyam.chaosmania.ChaosManiaMod.MOD_ID;
-import static net.fernyam.chaosmania.data.JSONSettingCreate.ElementToDontBreakBlock;
-import static net.fernyam.chaosmania.data.JSONSettingCreate.ElementToDontPlaceBlock;
+
 
 public class SpecialSettingsScreen extends Screen
 {
