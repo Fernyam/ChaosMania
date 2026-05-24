@@ -1,4 +1,4 @@
-package net.fernyam.chaosmania.gui.custom.test;
+package net.fernyam.chaosmania.gui.custom;
 
 import net.fernyam.chaosmania.data.JSONSettingCreate;
 import net.minecraft.client.gui.Font;
@@ -67,7 +67,7 @@ class PlayerInfoData {
     }
 }
 
-public class TestScreen extends Screen {
+public class MainSettingScreen extends Screen {
 
     private static final ResourceLocation BACKGROUND_TEXTURE = ResourceLocation.fromNamespaceAndPath(MOD_ID, "textures/gui/bg.png");
 
@@ -117,7 +117,7 @@ public class TestScreen extends Screen {
         }
     }
 
-    public TestScreen() {
+    public MainSettingScreen() {
         super(Component.empty());
         selectedPlayer = null;
         selectButton = null;
@@ -411,7 +411,7 @@ public class TestScreen extends Screen {
                     addRenderableWidget(Button.builder(
                             Component.literal("Add Block"),
                             button -> {
-                                this.minecraft.setScreen(new TestAllBlockScreen(selectedPlayer, this));
+                                this.minecraft.setScreen(new AllBlockScreen(selectedPlayer, this));
                             }
                     ).bounds(getWidth() / 2 + 105, getHeight() / 2 - 50, buttonWidth - 37, BUTTON_HEIGHT + 8).build());
 
@@ -466,7 +466,7 @@ public class TestScreen extends Screen {
                     addRenderableWidget(Button.builder(
                             Component.literal("Add Item"),
                             button -> {
-                                this.minecraft.setScreen(new TestAllItemScreen(selectedPlayer, this));
+                                this.minecraft.setScreen(new AllItemScreen(selectedPlayer, this));
                             }
                     ).bounds(getWidth() / 2 + 105, getHeight() / 2 - 50, buttonWidth - 37, BUTTON_HEIGHT + 8).build());
 
@@ -651,9 +651,9 @@ public class TestScreen extends Screen {
 
     private static class ScrollingPlayerList extends ObjectSelectionList<ScrollingPlayerList.PlayerSlot> {
         private static final int SLOT_HEIGHT = 30;
-        private final TestScreen parent;
+        private final MainSettingScreen parent;
 
-        ScrollingPlayerList(int x, int y, int width, int height, TestScreen parent) {
+        ScrollingPlayerList(int x, int y, int width, int height, MainSettingScreen parent) {
             super(Objects.requireNonNull(parent.minecraft), width, height, y, SLOT_HEIGHT);
             this.parent = parent;
             this.setX(x);
@@ -675,11 +675,11 @@ public class TestScreen extends Screen {
         }
 
         class PlayerSlot extends ObjectSelectionList.Entry<PlayerSlot> {
-            private final TestScreen parent;
+            private final MainSettingScreen parent;
             private final PlayerInfoData player;
             private boolean isSelected;
 
-            PlayerSlot(TestScreen parent, PlayerInfoData player) {
+            PlayerSlot(MainSettingScreen parent, PlayerInfoData player) {
                 this.parent = parent;
                 this.player = player;
                 this.isSelected = false;
@@ -743,9 +743,9 @@ public class TestScreen extends Screen {
 
     private static class ScrollingBlockList extends ObjectSelectionList<ScrollingBlockList.BlockSlot> {
         private static final int SLOT_HEIGHT = 55;
-        private final TestScreen parent;
+        private final MainSettingScreen parent;
 
-        ScrollingBlockList(int x, int y, int width, int height, TestScreen parent) {
+        ScrollingBlockList(int x, int y, int width, int height, MainSettingScreen parent) {
             super(Objects.requireNonNull(parent.minecraft), width, height, y, SLOT_HEIGHT);
             this.parent = parent;
             this.setX(x);
@@ -769,12 +769,12 @@ public class TestScreen extends Screen {
         }
 
         static class BlockSlot extends ObjectSelectionList.Entry<BlockSlot> {
-            private final TestScreen parent;
+            private final MainSettingScreen parent;
             private final BlockEntry block;
             private final Button DisableplaceItemButton;
             private final Button DisableBreakItemButton;
 
-            BlockSlot(TestScreen parent, BlockEntry block) {
+            BlockSlot(MainSettingScreen parent, BlockEntry block) {
                 this.parent = parent;
                 this.block = block;
 
@@ -862,9 +862,9 @@ public class TestScreen extends Screen {
 
     private static class ScrollingItemList extends ObjectSelectionList<ScrollingItemList.ItemSlot> {
         private static final int SLOT_HEIGHT = 55;
-        private final TestScreen parent;
+        private final MainSettingScreen parent;
 
-        ScrollingItemList(int x, int y, int width, int height, TestScreen parent) {
+        ScrollingItemList(int x, int y, int width, int height, MainSettingScreen parent) {
             super(Objects.requireNonNull(parent.minecraft), width, height, y, SLOT_HEIGHT);
             this.parent = parent;
             this.setX(x);
@@ -888,12 +888,12 @@ public class TestScreen extends Screen {
         }
 
         static class ItemSlot extends ObjectSelectionList.Entry<ItemSlot> {
-            private final TestScreen parent;
+            private final MainSettingScreen parent;
             private final ItemEntry item;
             private final Button DisableDropItemButton;
             private final Button DisablePickupItemButton;
 
-            ItemSlot(TestScreen parent, ItemEntry item) {
+            ItemSlot(MainSettingScreen parent, ItemEntry item) {
                 this.parent = parent;
                 this.item = item;
 

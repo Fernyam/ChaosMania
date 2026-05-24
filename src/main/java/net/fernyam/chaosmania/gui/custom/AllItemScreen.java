@@ -1,6 +1,5 @@
-package net.fernyam.chaosmania.gui.custom.test;
+package net.fernyam.chaosmania.gui.custom;
 
-import net.fernyam.chaosmania.ChaosManiaMod;
 import net.fernyam.chaosmania.data.JSONSettingCreate;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -12,6 +11,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.NotNull;
@@ -23,12 +23,12 @@ import java.util.Objects;
 import static net.fernyam.chaosmania.ChaosManiaMod.MOD_ID;
 
 
-public class TestAllItemScreen extends Screen {
+public class AllItemScreen extends Screen {
     private static final ResourceLocation BACKGROUND_TEXTURE = ResourceLocation.fromNamespaceAndPath(MOD_ID, "textures/gui/bg.png");
 
     private static PlayerInfoData player;
 
-    public static TestScreen parentScreen;
+    public static MainSettingScreen parentScreen;
 
     private static final int BUTTON_HEIGHT = 20;
 
@@ -40,7 +40,18 @@ public class TestAllItemScreen extends Screen {
     private ScrollingItemList itemListScroll;
 
     private List<ItemEntry> allItemsMasterList;
+    private List<ItemEntry> allBlockItemsMasterList;
     private String currentItemSearchFilter = "";
+
+    private SelectType selectType;
+
+    private Button itemButton;
+    private Button blockItemButton;
+
+    private enum SelectType {
+        ITEM,
+        BLOCK_ITEM
+    }
 
     // Типы поиска
     private enum SearchType {
@@ -59,13 +70,15 @@ public class TestAllItemScreen extends Screen {
         }
     }
 
-    public TestAllItemScreen(PlayerInfoData player, TestScreen parentScreen) {
+    public AllItemScreen(PlayerInfoData player, MainSettingScreen parentScreen) {
         super(Component.literal("Добавление предметов в настройки игрока " + (player.isAllPlayers() ? player.getName() : "§9§l" + player.getName())));
 
         this.player = player;
         this.parentScreen = parentScreen;
         this.allItemsMasterList = new ArrayList<>();
+        this.allBlockItemsMasterList = new ArrayList<>();
         this.currentItemSearchFilter = "";
+        this.selectType = SelectType.ITEM;
 
         if (player == null) onClose();
 
@@ -84,12 +97,10 @@ public class TestAllItemScreen extends Screen {
         if (trimmed.startsWith(":")) {
             String query = trimmed.substring(1).trim();
             return new ParsedSearchQuery(SearchType.ID, query);
-        }
-        else if (trimmed.startsWith("@")) {
+        } else if (trimmed.startsWith("@")) {
             String query = trimmed.substring(1).trim();
             return new ParsedSearchQuery(SearchType.MOD_ID, query);
-        }
-        else {
+        } else {
             return new ParsedSearchQuery(SearchType.NAME, trimmed);
         }
     }
@@ -158,22 +169,53 @@ public class TestAllItemScreen extends Screen {
     }
 
     private void updateItemListWithFilter() {
-        if (itemListScroll != null && allItemsMasterList != null) {
-            List<ItemEntry> filtered = filterItemsBySearch(allItemsMasterList, currentItemSearchFilter);
-            sortItemsWithActiveFirst(filtered);
-            itemListScroll.updateEntries(filtered);
+        if (itemListScroll == null) return;
+
+        if (selectType == SelectType.ITEM) {
+            if (allItemsMasterList != null) {
+                List<ItemEntry> filtered = filterItemsBySearch(allItemsMasterList, currentItemSearchFilter);
+                sortItemsWithActiveFirst(filtered);
+                itemListScroll.updateEntries(filtered);
+            }
+        } else if (selectType == SelectType.BLOCK_ITEM) {
+            if (allBlockItemsMasterList != null) {
+                List<ItemEntry> filtered = filterItemsBySearch(allBlockItemsMasterList, currentItemSearchFilter);
+                sortItemsWithActiveFirst(filtered);
+                itemListScroll.updateEntries(filtered);
+            }
         }
     }
 
     private void loadAllItems() {
         allItemsMasterList = new ArrayList<>();
+        allBlockItemsMasterList = new ArrayList<>();
 
         for (Item item : BuiltInRegistries.ITEM) {
-            if (item instanceof net.minecraft.world.item.BlockItem) continue;
-            allItemsMasterList.add(new ItemEntry(item, new ItemStack(item)));
+            ItemEntry entry = new ItemEntry(item, new ItemStack(item));
+
+            if (item instanceof BlockItem) {
+                allBlockItemsMasterList.add(entry);
+            } else {
+                allItemsMasterList.add(entry);
+            }
         }
 
         sortItemsWithActiveFirst(allItemsMasterList);
+        sortItemsWithActiveFirst(allBlockItemsMasterList);
+        updateItemListWithFilter();
+    }
+
+    private void switchToItemType() {
+        selectType = SelectType.ITEM;
+        itemButton.active = false;
+        blockItemButton.active = true;
+        updateItemListWithFilter();
+    }
+
+    private void switchToBlockItemType() {
+        selectType = SelectType.BLOCK_ITEM;
+        itemButton.active = true;
+        blockItemButton.active = false;
         updateItemListWithFilter();
     }
 
@@ -190,7 +232,28 @@ public class TestAllItemScreen extends Screen {
                 }
         ).bounds(centerX - this.backgroundWidth / 2, this.height - 25, this.backgroundWidth, BUTTON_HEIGHT).build());
 
-        this.searchAllItems = new EditBox(getFontRender(), this.width / 2 - 98, this.height / 2 - 112 + 7, this.backgroundWidth - 20, 17, Component.literal("Поиск предметов... (:id | @modid)"));
+        // Кнопка для обычных предметов (не BlockItem)
+        this.itemButton = Button.builder(
+                Component.literal("Items"),
+                button -> switchToItemType()
+        ).bounds(this.width / 2 - this.backgroundWidth / 2 - 45, this.height / 2 - 117 + 25 + 7, 45, BUTTON_HEIGHT).build();
+
+        // Кнопка для BlockItem
+        this.blockItemButton = Button.builder(
+                Component.literal("Blocks"),
+                button -> switchToBlockItemType()
+        ).bounds(this.width / 2 - this.backgroundWidth / 2 - 45, this.height / 2 - 117 + 25 + 7 + BUTTON_HEIGHT + 5, 45, BUTTON_HEIGHT).build();
+
+        // Устанавливаем состояние кнопок в зависимости от выбранного типа
+        if (selectType == SelectType.ITEM) {
+            itemButton.active = false;
+            blockItemButton.active = true;
+        } else {
+            itemButton.active = true;
+            blockItemButton.active = false;
+        }
+
+        this.searchAllItems = new EditBox(getFontRender(), this.width / 2 - 98, this.height / 2 - 112 + 7, this.backgroundWidth - 20, 17, Component.literal("Поиск... (:id | @modid)"));
 
         this.searchAllItems.setResponder(searchText -> {
             currentItemSearchFilter = searchText;
@@ -215,6 +278,8 @@ public class TestAllItemScreen extends Screen {
 
         updateItemListWithFilter();
 
+        this.addRenderableWidget(itemButton);
+        this.addRenderableWidget(blockItemButton);
         this.addRenderableWidget(searchAllItems);
         this.addRenderableWidget(itemListScroll);
     }
@@ -290,9 +355,9 @@ public class TestAllItemScreen extends Screen {
 
     private static class ScrollingItemList extends ObjectSelectionList<ScrollingItemList.ItemSlot> {
         private static final int SLOT_HEIGHT = 55;
-        private final TestAllItemScreen parent;
+        private final AllItemScreen parent;
 
-        ScrollingItemList(int x, int y, int width, int height, TestAllItemScreen parent) {
+        ScrollingItemList(int x, int y, int width, int height, AllItemScreen parent) {
             super(Objects.requireNonNull(parent.minecraft), width, height, y, SLOT_HEIGHT);
             this.parent = parent;
             this.setX(x);
@@ -316,28 +381,24 @@ public class TestAllItemScreen extends Screen {
         }
 
         static class ItemSlot extends ObjectSelectionList.Entry<ItemSlot> {
-            private final TestAllItemScreen parent;
+            private final AllItemScreen parent;
             private final ItemEntry item;
             private final Button AddItemButton;
 
-            ItemSlot(TestAllItemScreen parent, ItemEntry item) {
+            ItemSlot(AllItemScreen parent, ItemEntry item) {
                 this.parent = parent;
                 this.item = item;
 
                 this.AddItemButton = Button.builder(
                                 Component.literal(JSONSettingCreate.GetPlayerSettingsOfUUID(player.getUuid()).isItemExists(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "§c-" : "§a+"),
                                 button -> {
+                                    JSONSettingCreate.ElementToSettingItem(player.getUuid(), item.getItem());
                                     button.setMessage(Component.literal(JSONSettingCreate.GetPlayerSettingsOfUUID(player.getUuid()).isItemExists(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "§c-" : "§a+"));
-                                    onButtonClick();
+                                    parent.updateItemListWithFilter();
                                 }
                         ).bounds(0, 0, 20, 20)
                         .tooltip(Tooltip.create(Component.literal("Добавить предмет в список")))
                         .build();
-            }
-
-            private void onButtonClick() {
-                JSONSettingCreate.ElementToSettingItem(player.getUuid(), item.getItem());
-                parent.updateItemListWithFilter();
             }
 
             @Override

@@ -1,7 +1,7 @@
 package net.fernyam.chaosmania.client;
 
 
-import net.fernyam.chaosmania.gui.custom.test.TestScreen;
+import net.fernyam.chaosmania.gui.custom.MainSettingScreen;
 import net.neoforged.bus.api.SubscribeEvent;
 
 import net.neoforged.neoforge.client.event.ClientTickEvent;
@@ -42,7 +42,7 @@ public class ClientInputHandler {
         Minecraft mc = Minecraft.getInstance();
 
 
-        TestScreen screen = new TestScreen();
+        MainSettingScreen screen = new MainSettingScreen();
 
         // Открываем экран
         mc.setScreen(screen);

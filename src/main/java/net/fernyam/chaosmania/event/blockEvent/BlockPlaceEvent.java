@@ -9,31 +9,35 @@ import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
 
 import java.util.List;
+import java.util.UUID;
+import java.util.jar.JarOutputStream;
 
 public class BlockPlaceEvent {
 
 
     public static void onBlockPlace(BlockEvent.EntityPlaceEvent event) {
-//        if (event.getLevel().isClientSide()) return;
-//
-//        List<PlayerSettings> allSettings = JSONSettingCreate.loadSettings();
-//
-//        if (event.getEntity() instanceof Player player) {
-//            PlayerSettings playerSettings = allSettings.stream()
-//                    .filter(settings -> settings.getUuidPlayer().equals(player.getUUID().toString()))
-//                    .findFirst()
-//                    .orElse(null);
-//
-//            if (playerSettings == null) return;
-//            if (!playerSettings.isDisablePlaceBlock()) return;
-//
-//            String placedBlockKey = BuiltInRegistries.BLOCK.getKey(event.getPlacedBlock().getBlock()).toString();
-//
-//            if (playerSettings.getDontPlaceBlockList().contains(placedBlockKey)) {
-//                event.setCanceled(true);
-//                ChaosManiaMod.LOGGER.info("FFFFFF");
-//            }
-//        }
+        if (event.getLevel().isClientSide()) return;
+
+        if (event.getEntity() instanceof Player player) {
+            PlayerSettings ALLPlayerSetting = JSONSettingCreate.GetPlayerSettingsOfUUID(UUID.fromString(JSONSettingCreate.ALL_UUID_PLAYER));
+            PlayerSettings playerSettings = JSONSettingCreate.GetPlayerSettingsOfUUID(player.getUUID());
+
+            if (playerSettings == null || ALLPlayerSetting == null) return;
+            if (!playerSettings.getDisablePlaceBlock()) return;
+
+
+            if (playerSettings.canPlaceBlock(BuiltInRegistries.BLOCK.getKey(event.getPlacedBlock().getBlock()).toString())) {
+                event.setCanceled(true);
+            }
+            else
+            {
+                if(!ALLPlayerSetting.getDisablePlaceBlock()) return;
+                if (ALLPlayerSetting.canPlaceBlock(BuiltInRegistries.BLOCK.getKey(event.getPlacedBlock().getBlock()).toString()))
+                {
+                    event.setCanceled(true);
+                }
+            }
+        }
 
     }
 }

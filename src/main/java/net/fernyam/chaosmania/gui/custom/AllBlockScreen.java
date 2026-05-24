@@ -1,6 +1,5 @@
-package net.fernyam.chaosmania.gui.custom.test;
+package net.fernyam.chaosmania.gui.custom;
 
-import net.fernyam.chaosmania.ChaosManiaMod;
 import net.fernyam.chaosmania.data.JSONSettingCreate;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -26,12 +25,12 @@ import java.util.Objects;
 import static net.fernyam.chaosmania.ChaosManiaMod.MOD_ID;
 
 
-public class TestAllBlockScreen extends Screen {
+public class AllBlockScreen extends Screen {
     private static final ResourceLocation BACKGROUND_TEXTURE = ResourceLocation.fromNamespaceAndPath(MOD_ID, "textures/gui/bg.png");
 
     private static PlayerInfoData player;
 
-    public static TestScreen parentScreen;
+    public static MainSettingScreen parentScreen;
 
     private static final int BUTTON_HEIGHT = 20;
 
@@ -42,7 +41,7 @@ public class TestAllBlockScreen extends Screen {
 
     private ScrollingBlockList blockListScroll;
 
-    private List<TestScreen.BlockEntry> allBlocksMasterList;
+    private List<MainSettingScreen.BlockEntry> allBlocksMasterList;
     private String currentBlockSearchFilter = "";
 
     // Типы поиска
@@ -62,7 +61,7 @@ public class TestAllBlockScreen extends Screen {
         }
     }
 
-    public TestAllBlockScreen(PlayerInfoData player, TestScreen parentScreen) {
+    public AllBlockScreen(PlayerInfoData player, MainSettingScreen parentScreen) {
         super(Component.literal("Добавление блоков в настройки игрока " + (player.isAllPlayers() ? player.getName() : "§9§l" + player.getName())));
 
         this.player = player;
@@ -100,7 +99,7 @@ public class TestAllBlockScreen extends Screen {
         }
     }
 
-    private List<TestScreen.BlockEntry> filterBlocksBySearch(List<TestScreen.BlockEntry> blocks, String searchText) {
+    private List<MainSettingScreen.BlockEntry> filterBlocksBySearch(List<MainSettingScreen.BlockEntry> blocks, String searchText) {
         if (searchText == null || searchText.trim().isEmpty()) {
             return new ArrayList<>(blocks);
         }
@@ -111,12 +110,12 @@ public class TestAllBlockScreen extends Screen {
             return new ArrayList<>(blocks);
         }
 
-        List<TestScreen.BlockEntry> filtered = new ArrayList<>();
+        List<MainSettingScreen.BlockEntry> filtered = new ArrayList<>();
 
         switch (parsed.type) {
             case NAME:
                 // Поиск по имени блока
-                for (TestScreen.BlockEntry entry : blocks) {
+                for (MainSettingScreen.BlockEntry entry : blocks) {
                     if (entry.getName().toLowerCase().contains(parsed.query)) {
                         filtered.add(entry);
                     }
@@ -125,7 +124,7 @@ public class TestAllBlockScreen extends Screen {
 
             case ID:
                 // Поиск только по PATH части ID (после :)
-                for (TestScreen.BlockEntry entry : blocks) {
+                for (MainSettingScreen.BlockEntry entry : blocks) {
                     ResourceLocation key = BuiltInRegistries.BLOCK.getKey(entry.getBlock());
                     String path = key.getPath().toLowerCase();
                     if (path.contains(parsed.query)) {
@@ -136,7 +135,7 @@ public class TestAllBlockScreen extends Screen {
 
             case MOD_ID:
                 // Поиск по MOD_ID (часть до :)
-                for (TestScreen.BlockEntry entry : blocks) {
+                for (MainSettingScreen.BlockEntry entry : blocks) {
                     ResourceLocation key = BuiltInRegistries.BLOCK.getKey(entry.getBlock());
                     String modId = key.getNamespace().toLowerCase();
                     if (modId.contains(parsed.query)) {
@@ -149,7 +148,7 @@ public class TestAllBlockScreen extends Screen {
         return filtered;
     }
 
-    private void sortBlocksWithActiveFirst(List<TestScreen.BlockEntry> blocks) {
+    private void sortBlocksWithActiveFirst(List<MainSettingScreen.BlockEntry> blocks) {
         blocks.sort((a, b) -> {
             boolean aAdded = JSONSettingCreate.GetPlayerSettingsOfUUID(player.getUuid())
                     .isBlockExists(BuiltInRegistries.BLOCK.getKey(a.getBlock()).toString());
@@ -168,7 +167,7 @@ public class TestAllBlockScreen extends Screen {
 
     private void updateBlockListWithFilter() {
         if (blockListScroll != null && allBlocksMasterList != null) {
-            List<TestScreen.BlockEntry> filtered = filterBlocksBySearch(allBlocksMasterList, currentBlockSearchFilter);
+            List<MainSettingScreen.BlockEntry> filtered = filterBlocksBySearch(allBlocksMasterList, currentBlockSearchFilter);
             sortBlocksWithActiveFirst(filtered);
             blockListScroll.updateEntries(filtered);
         }
@@ -181,7 +180,7 @@ public class TestAllBlockScreen extends Screen {
             if (!(item instanceof BlockItem)) continue;
             Block block = ((BlockItem) item).getBlock();
             if (block == Blocks.AIR) continue;
-            allBlocksMasterList.add(new TestScreen.BlockEntry(block, new ItemStack(item)));
+            allBlocksMasterList.add(new MainSettingScreen.BlockEntry(block, new ItemStack(item)));
         }
 
         sortBlocksWithActiveFirst(allBlocksMasterList);
@@ -283,9 +282,9 @@ public class TestAllBlockScreen extends Screen {
 
     private static class ScrollingBlockList extends ObjectSelectionList<ScrollingBlockList.BlockSlot> {
         private static final int SLOT_HEIGHT = 55;
-        private final TestAllBlockScreen parent;
+        private final AllBlockScreen parent;
 
-        ScrollingBlockList(int x, int y, int width, int height, TestAllBlockScreen parent) {
+        ScrollingBlockList(int x, int y, int width, int height, AllBlockScreen parent) {
             super(Objects.requireNonNull(parent.minecraft), width, height, y, SLOT_HEIGHT);
             this.parent = parent;
             this.setX(x);
@@ -301,7 +300,7 @@ public class TestAllBlockScreen extends Screen {
             return this.getX() + this.width - 6;
         }
 
-        void updateEntries(List<TestScreen.BlockEntry> blocks) {
+        void updateEntries(List<MainSettingScreen.BlockEntry> blocks) {
             this.clearEntries();
             if (blocks != null) {
                 blocks.forEach(block -> this.addEntry(new BlockSlot(parent, block)));
@@ -309,11 +308,11 @@ public class TestAllBlockScreen extends Screen {
         }
 
         static class BlockSlot extends ObjectSelectionList.Entry<BlockSlot> {
-            private final TestAllBlockScreen parent;
-            private final TestScreen.BlockEntry block;
+            private final AllBlockScreen parent;
+            private final MainSettingScreen.BlockEntry block;
             private final Button AddBlockButton;
 
-            BlockSlot(TestAllBlockScreen parent, TestScreen.BlockEntry block) {
+            BlockSlot(AllBlockScreen parent, MainSettingScreen.BlockEntry block) {
                 this.parent = parent;
                 this.block = block;
 
