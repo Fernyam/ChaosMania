@@ -1,6 +1,7 @@
 package net.fernyam.chaosmania.gui.custom;
 
 import net.fernyam.chaosmania.data.JSONSettingCreate;
+import net.fernyam.chaosmania.data.PlayerSettings;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -43,11 +44,17 @@ class PlayerInfoData {
         this(uuid, name, false);
     }
 
+    public PlayerInfoData(String uuid, String name)
+    {
+        this(UUID.fromString(uuid), name, false);
+    }
+
     private PlayerInfoData(UUID uuid, String name, boolean isAllPlayers) {
         this.uuid = uuid;
         this.name = name;
         this.isAllPlayers = isAllPlayers;
     }
+
 
     public UUID getUuid() { return uuid; }
     public String getName() { return name; }
@@ -311,12 +318,22 @@ public class MainSettingScreen extends Screen {
     // ==================== Общие методы ====================
 
     private List<PlayerInfoData> getOnlinePlayers() {
+
         List<PlayerInfoData> players = new ArrayList<>();
 
-        players.add(PlayerInfoData.ALL_PLAYERS);
+        for(PlayerSettings playerSett : JSONSettingCreate.loadSettings())
+        {
+            if(Objects.equals(playerSett.getUuidPlayer(), ALL_UUID_PLAYER))
+            {
+                players.add(PlayerInfoData.ALL_PLAYERS);
+                continue;
+            }
+            players.add(new PlayerInfoData(playerSett.getUuidPlayer() , playerSett.getName()));
+        }
 
         if (minecraft != null && minecraft.getConnection() != null) {
             for (PlayerInfo playerInfo : minecraft.getConnection().getListedOnlinePlayers()) {
+                if(players.contains(new PlayerInfoData(playerInfo.getProfile().getId(), playerInfo.getProfile().getName()))) continue;
                 players.add(new PlayerInfoData(playerInfo.getProfile().getId(), playerInfo.getProfile().getName()));
             }
         }
@@ -325,7 +342,10 @@ public class MainSettingScreen extends Screen {
             players.add(new PlayerInfoData(minecraft.player.getUUID(), minecraft.player.getName().getString()));
         }
 
+
         return players;
+
+
     }
 
     @Override
