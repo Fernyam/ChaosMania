@@ -41,7 +41,6 @@ public class ChaosManiaMod {
         NeoForge.EVENT_BUS.addListener(AnimalReproductionEvent::onEntityInteract);
 
         NeoForge.EVENT_BUS.addListener(VillagerTradingEvent::onEntityInteract);
-        NeoForge.EVENT_BUS.addListener(VillagerTradingEvent::onPlayerTick);
 
         NeoForge.EVENT_BUS.addListener(ItemPickupEvent::onItemPickupPre);
 
@@ -50,6 +49,7 @@ public class ChaosManiaMod {
         //NeoForge.EVENT_BUS.addListener(ItemCraftingEvent::onServerAboutToStart);
 
         NeoForge.EVENT_BUS.addListener(BlockPlaceEvent::onBlockPlace);
+//        NeoForge.EVENT_BUS.addListener(BlockPlaceEvent::onBlockPlace);
         NeoForge.EVENT_BUS.addListener(BlockBreakEvent::onBlockBreak);
 
         NeoForge.EVENT_BUS.addListener(this::D);

@@ -8,10 +8,12 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.ObjectSelectionList;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.BlockItem;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.NotNull;
@@ -19,21 +21,9 @@ import org.jetbrains.annotations.NotNull;
 import java.util.*;
 
 import static net.fernyam.chaosmania.ChaosManiaMod.MOD_ID;
+import static net.fernyam.chaosmania.ModConstants.*;
 
-
-public class AllItemScreen extends Screen {
-
-    private enum SelectType {
-        ITEM,
-        BLOCK_ITEM
-    }
-
-    // Типы поиска
-    private enum SearchType {
-        NAME,           // обычный поиск по имени
-        ID,             // поиск по ID (префикс :)
-        MOD_ID          // поиск по MOD_ID (префикс @)
-    }
+public class AllSeedsScreen extends Screen {
 
     private static final ResourceLocation BACKGROUND_TEXTURE = ResourceLocation.fromNamespaceAndPath(MOD_ID, "textures/gui/bg.png");
 
@@ -46,18 +36,32 @@ public class AllItemScreen extends Screen {
     private static final int backgroundWidth = 216;
     private static final int backgroundHeight = 230;
 
-    private EditBox searchAllItems;
 
-    private ScrollingItemList itemListScroll;
+    private EditBox searchAllSeeds;
 
-    private List<ItemEntry> allItemsMasterList;
-    private List<ItemEntry> allBlockItemsMasterList;
-    private String currentItemSearchFilter = "";
+    private ScrollingItemSeedList seedListScroll;
 
-    private SelectType selectType;
+    private List<ItemSeedEntry> allSeedsMasterList;
+    private String currentSeedsSearchFilter = "";
 
     private Button itemButton;
     private Button blockItemButton;
+
+    SelectType selectType;
+
+
+    // Типы поиска
+    private enum SearchType {
+        NAME,           // обычный поиск по имени
+        ID,             // поиск по ID (префикс :)
+        MOD_ID          // поиск по MOD_ID (префикс @)
+    }
+
+    private enum SelectType
+    {
+        ITEM,
+        BLOCK
+    }
 
 
     private static class ParsedSearchQuery {
@@ -70,22 +74,23 @@ public class AllItemScreen extends Screen {
         }
     }
 
-    public AllItemScreen(PlayerInfoData player, MainSettingScreen parentScreen) {
-        super(Component.literal("Добавление предметов в настройки игрока " + (player.isAllPlayers() ? player.getName() : "§9§l" + player.getName())));
+
+    protected AllSeedsScreen(PlayerInfoData player, MainSettingScreen parentScreen) {
+        super(Component.literal("Добавление настройку посадки " + (player.isAllPlayers() ? player.getName() : "§9§l" + player.getName())));
+        if (player == null) onClose();
 
         this.player = player;
         this.parentScreen = parentScreen;
-        this.allItemsMasterList = new ArrayList<>();
-        this.allBlockItemsMasterList = new ArrayList<>();
-        this.currentItemSearchFilter = "";
-        this.selectType = SelectType.ITEM;
+        this.allSeedsMasterList = new ArrayList<>();
+        this.currentSeedsSearchFilter = "";
 
-        if (player == null) onClose();
+        selectType = SelectType.ITEM;
+
 
         loadAllItems();
     }
 
-    // ==================== Методы для поиска ====================
+
 
     private ParsedSearchQuery parseSearchQuery(String searchText) {
         if (searchText == null || searchText.trim().isEmpty()) {
@@ -105,7 +110,7 @@ public class AllItemScreen extends Screen {
         }
     }
 
-    private List<ItemEntry> filterItemsBySearch(List<ItemEntry> items, String searchText) {
+    private List<ItemSeedEntry> filterItemsBySearch(List<ItemSeedEntry> items, String searchText) {
         if (searchText == null || searchText.trim().isEmpty()) {
             return new ArrayList<>(items);
         }
@@ -116,11 +121,11 @@ public class AllItemScreen extends Screen {
             return new ArrayList<>(items);
         }
 
-        List<ItemEntry> filtered = new ArrayList<>();
+        List<ItemSeedEntry> filtered = new ArrayList<>();
 
         switch (parsed.type) {
             case NAME:
-                for (ItemEntry entry : items) {
+                for (ItemSeedEntry entry : items) {
                     if (entry.getName().toLowerCase().contains(parsed.query)) {
                         filtered.add(entry);
                     }
@@ -128,7 +133,7 @@ public class AllItemScreen extends Screen {
                 break;
 
             case ID:
-                for (ItemEntry entry : items) {
+                for (ItemSeedEntry entry : items) {
                     ResourceLocation key = BuiltInRegistries.ITEM.getKey(entry.getItem());
                     String path = key.getPath().toLowerCase();
                     if (path.contains(parsed.query)) {
@@ -138,7 +143,7 @@ public class AllItemScreen extends Screen {
                 break;
 
             case MOD_ID:
-                for (ItemEntry entry : items) {
+                for (ItemSeedEntry entry : items) {
                     ResourceLocation key = BuiltInRegistries.ITEM.getKey(entry.getItem());
                     String modId = key.getNamespace().toLowerCase();
                     if (modId.contains(parsed.query)) {
@@ -151,7 +156,7 @@ public class AllItemScreen extends Screen {
         return filtered;
     }
 
-    private void sortItemsWithActiveFirst(List<ItemEntry> items) {
+    private void sortItemsWithActiveFirst(List<ItemSeedEntry> items) {
         items.sort((a, b) -> {
             boolean aAdded = JSONSettingCreate.GetPlayerSettingsOfUUID(player.getUuid())
                     .isItemExists(BuiltInRegistries.ITEM.getKey(a.getItem()).toString());
@@ -169,44 +174,55 @@ public class AllItemScreen extends Screen {
     }
 
     private void updateItemListWithFilter() {
-        if (itemListScroll == null) return;
+        if (seedListScroll == null) return;
 
-        if (selectType == SelectType.ITEM) {
-            if (allItemsMasterList != null) {
-                List<ItemEntry> filtered = filterItemsBySearch(allItemsMasterList, currentItemSearchFilter);
-                sortItemsWithActiveFirst(filtered);
-                itemListScroll.updateEntries(filtered);
-            }
-        } else if (selectType == SelectType.BLOCK_ITEM) {
-            if (allBlockItemsMasterList != null) {
-                List<ItemEntry> filtered = filterItemsBySearch(allBlockItemsMasterList, currentItemSearchFilter);
-                sortItemsWithActiveFirst(filtered);
-                itemListScroll.updateEntries(filtered);
-            }
+
+        if (allSeedsMasterList != null) {
+            List<ItemSeedEntry> filtered = filterItemsBySearch(allSeedsMasterList, currentSeedsSearchFilter);
+            sortItemsWithActiveFirst(filtered);
+            seedListScroll.updateEntries(filtered);
         }
+
     }
 
     private void loadAllItems() {
-        Set<ItemEntry> allItemsSet = new HashSet<>();
-        Set<ItemEntry> allBlockItemsSet = new HashSet<>();
+        Set<ItemSeedEntry> allItemsSet = new HashSet<>();
 
-        for (Item item : BuiltInRegistries.ITEM) {
-            ItemEntry entry = new ItemEntry(item, new ItemStack(item));
-
-            if (item instanceof BlockItem) {
-                allBlockItemsSet.add(entry);
-            } else {
+        BuiltInRegistries.ITEM.getTag(C_SEEDS).ifPresent(tag -> {
+            for (Holder<Item> holder : tag) {
+                Item item = holder.value();
+                ItemSeedEntry entry = new ItemSeedEntry(item, new ItemStack(item));
                 allItemsSet.add(entry);
             }
-        }
+        });
 
-        allItemsMasterList = new ArrayList<>(allItemsSet);
-        allBlockItemsMasterList = new ArrayList<>(allBlockItemsSet);
+        BuiltInRegistries.ITEM.getTag(C_CROPS).ifPresent(tag -> {
+            for (Holder<Item> holder : tag) {
+                Item item = holder.value();
+                ItemSeedEntry entry = new ItemSeedEntry(item, new ItemStack(item));
+                if(!allItemsSet.contains(entry))
+                {
+                    allItemsSet.add(entry);
+                }
+            }
+        });
 
-        sortItemsWithActiveFirst(allItemsMasterList);
-        sortItemsWithActiveFirst(allBlockItemsMasterList);
+        BuiltInRegistries.ITEM.getTag(MINECRAFT_FLOWERS).ifPresent(tag -> {
+            for (Holder<Item> holder : tag) {
+                Item item = holder.value();
+                ItemSeedEntry entry = new ItemSeedEntry(item, new ItemStack(item));
+                if(!allItemsSet.contains(entry))
+                {
+                    allItemsSet.add(entry);
+                }
+            }
+        });
+
+        allSeedsMasterList = new ArrayList<>(allItemsSet);
+        sortItemsWithActiveFirst(allSeedsMasterList);
         updateItemListWithFilter();
     }
+
 
     private void switchToItemType() {
         selectType = SelectType.ITEM;
@@ -216,7 +232,7 @@ public class AllItemScreen extends Screen {
     }
 
     private void switchToBlockItemType() {
-        selectType = SelectType.BLOCK_ITEM;
+        selectType = SelectType.BLOCK;
         itemButton.active = true;
         blockItemButton.active = false;
         updateItemListWithFilter();
@@ -235,19 +251,18 @@ public class AllItemScreen extends Screen {
                 }
         ).bounds(centerX - this.backgroundWidth / 2, this.height - 25, this.backgroundWidth, BUTTON_HEIGHT).build());
 
-        // Кнопка для обычных предметов (не BlockItem)
-        this.itemButton = Button.builder(
+        this.itemButton = addRenderableWidget(Button.builder(
                 Component.literal("Items"),
                 button -> switchToItemType()
-        ).bounds(this.width / 2 - this.backgroundWidth / 2 - 45, this.height / 2 - 117 + 25 + 7, 45, BUTTON_HEIGHT).build();
+
+        ).bounds(this.width / 2 - this.backgroundWidth / 2 - 45, this.height / 2 - 117 + 25 + 7, 45, BUTTON_HEIGHT).build());
 
         // Кнопка для BlockItem
-        this.blockItemButton = Button.builder(
-                Component.literal("Blocks"),
+        this.blockItemButton = addRenderableWidget(Button.builder(
+                Component.literal("Blocks"), //В реализации
                 button -> switchToBlockItemType()
-        ).bounds(this.width / 2 - this.backgroundWidth / 2 - 45, this.height / 2 - 117 + 25 + 7 + BUTTON_HEIGHT + 5, 45, BUTTON_HEIGHT).build();
+        ).bounds(this.width / 2 - this.backgroundWidth / 2 - 45, this.height / 2 - 117 + 25 + 7 + BUTTON_HEIGHT + 5, 45, BUTTON_HEIGHT).build());
 
-        // Устанавливаем состояние кнопок в зависимости от выбранного типа
         if (selectType == SelectType.ITEM) {
             itemButton.active = false;
             blockItemButton.active = true;
@@ -256,35 +271,33 @@ public class AllItemScreen extends Screen {
             blockItemButton.active = false;
         }
 
-        this.searchAllItems = new EditBox(getFontRender(), this.width / 2 - 98, this.height / 2 - 112 + 7, this.backgroundWidth - 20, 17, Component.literal("Поиск... (:id | @modid)"));
+        this.searchAllSeeds = new EditBox(getFontRender(), this.width / 2 - 98, this.height / 2 - 112 + 7, this.backgroundWidth - 20, 17, Component.literal("Поиск... (:id | @modid)"));
 
-        this.searchAllItems.setResponder(searchText -> {
-            currentItemSearchFilter = searchText;
+        this.searchAllSeeds.setResponder(searchText -> {
+            currentSeedsSearchFilter = searchText;
 
             // Меняем цвет текста в зависимости от префикса
             if (searchText != null && !searchText.isEmpty()) {
                 if (searchText.startsWith(":")) {
-                    searchAllItems.setTextColor(0xFFFF55); // Жёлтый
+                    searchAllSeeds.setTextColor(0xFFFF55); // Жёлтый
                 } else if (searchText.startsWith("@")) {
-                    searchAllItems.setTextColor(0x55FFFF); // Голубой
+                    searchAllSeeds.setTextColor(0x55FFFF); // Голубой
                 } else {
-                    searchAllItems.setTextColor(0xFFFFFF); // Белый
+                    searchAllSeeds.setTextColor(0xFFFFFF); // Белый
                 }
             } else {
-                searchAllItems.setTextColor(0xFFFFFF); // Белый
+                searchAllSeeds.setTextColor(0xFFFFFF); // Белый
             }
 
             updateItemListWithFilter();
         });
 
-        this.itemListScroll = new ScrollingItemList(this.width / 2 - this.backgroundWidth / 2 + 10, this.height / 2 - 117 + 25 + 7, this.backgroundWidth - 20, this.backgroundHeight - 45, this);
+        this.seedListScroll = new ScrollingItemSeedList(this.width / 2 - this.backgroundWidth / 2 + 10, this.height / 2 - 117 + 25 + 7, this.backgroundWidth - 20, this.backgroundHeight - 45, this);
 
         updateItemListWithFilter();
 
-        this.addRenderableWidget(itemButton);
-        this.addRenderableWidget(blockItemButton);
-        this.addRenderableWidget(searchAllItems);
-        this.addRenderableWidget(itemListScroll);
+        this.addRenderableWidget(searchAllSeeds);
+        this.addRenderableWidget(seedListScroll);
     }
 
     @Override
@@ -336,14 +349,15 @@ public class AllItemScreen extends Screen {
         return getMinecraft().font;
     }
 
-    //==================================== Внутренние классы ================================
 
-    public static class ItemEntry {
+    //==========================================================================
+
+    public static class ItemSeedEntry {
         private final Item item;
         private final ItemStack itemStack;
         private final String name;
 
-        ItemEntry(Item item, ItemStack itemStack) {
+        ItemSeedEntry(Item item, ItemStack itemStack) {
             this.item = item;
             this.itemStack = itemStack;
             this.name = itemStack.getHoverName().getString();
@@ -357,7 +371,7 @@ public class AllItemScreen extends Screen {
         public boolean equals(Object obj) {
             if (this == obj) return true;
             if (obj == null || getClass() != obj.getClass()) return false;
-            ItemEntry that = (ItemEntry) obj;
+            AllSeedsScreen.ItemSeedEntry that = (AllSeedsScreen.ItemSeedEntry) obj;
             return Objects.equals(item, that.item);
         }
 
@@ -367,13 +381,13 @@ public class AllItemScreen extends Screen {
         }
     }
 
-    //=================================================================
 
-    private static class ScrollingItemList extends ObjectSelectionList<ScrollingItemList.ItemSlot> {
+
+    private static class ScrollingItemSeedList extends ObjectSelectionList<ScrollingItemSeedList.ItemSeedSlot> {
         private static final int SLOT_HEIGHT = 55;
-        private final AllItemScreen parent;
+        private final AllSeedsScreen parent;
 
-        ScrollingItemList(int x, int y, int width, int height, AllItemScreen parent) {
+        ScrollingItemSeedList(int x, int y, int width, int height, AllSeedsScreen parent) {
             super(Objects.requireNonNull(parent.minecraft), width, height, y, SLOT_HEIGHT);
             this.parent = parent;
             this.setX(x);
@@ -389,27 +403,27 @@ public class AllItemScreen extends Screen {
             return this.getX() + this.width - 6;
         }
 
-        void updateEntries(List<ItemEntry> items) {
+        void updateEntries(List<ItemSeedEntry> items) {
             this.clearEntries();
             if (items != null) {
-                items.forEach(item -> this.addEntry(new ItemSlot(parent, item)));
+                items.forEach(item -> this.addEntry(new ItemSeedSlot(parent, item)));
             }
         }
 
-        static class ItemSlot extends ObjectSelectionList.Entry<ItemSlot> {
-            private final AllItemScreen parent;
-            private final ItemEntry item;
+        static class ItemSeedSlot extends ObjectSelectionList.Entry<ScrollingItemSeedList.ItemSeedSlot> {
+            private final AllSeedsScreen parent;
+            private final ItemSeedEntry item;
             private final Button AddItemButton;
 
-            ItemSlot(AllItemScreen parent, ItemEntry item) {
+            ItemSeedSlot(AllSeedsScreen parent, ItemSeedEntry item) {
                 this.parent = parent;
                 this.item = item;
 
                 this.AddItemButton = Button.builder(
-                                Component.literal(JSONSettingCreate.GetPlayerSettingsOfUUID(player.getUuid()).isItemExists(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "§c-" : "§a+"),
+                                Component.literal(JSONSettingCreate.GetPlayerSettingsOfUUID(player.getUuid()).isPlantSeedExists(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "§c-" : "§a+"),
                                 button -> {
-                                    JSONSettingCreate.ElementToSettingItem(player.getUuid(), item.getItem());
-                                    button.setMessage(Component.literal(JSONSettingCreate.GetPlayerSettingsOfUUID(player.getUuid()).isItemExists(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "§c-" : "§a+"));
+                                    JSONSettingCreate.ElementToSettingSeed(player.getUuid(), item.getItem());
+                                    button.setMessage(Component.literal(JSONSettingCreate.GetPlayerSettingsOfUUID(player.getUuid()).isPlantSeedExists(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "§c-" : "§a+"));
                                     parent.updateItemListWithFilter();
                                 }
                         ).bounds(0, 0, 20, 20)
@@ -469,4 +483,5 @@ public class AllItemScreen extends Screen {
             }
         }
     }
+
 }

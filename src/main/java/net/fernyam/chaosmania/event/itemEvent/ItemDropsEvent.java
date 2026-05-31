@@ -17,7 +17,7 @@ public class ItemDropsEvent {
 
         if(playerSettings == null || ALLPlayerSetting == null) return;
 
-        if(!playerSettings.getDisableItemDrop()) return;
+        if(!playerSettings.getDisableDropItem()) return;
 
         if(playerSettings.canDropItem(BuiltInRegistries.ITEM.getKey(event.getEntity().getItem().getItem()).toString()))
         {
@@ -25,7 +25,7 @@ public class ItemDropsEvent {
         }
         else
         {
-            if(!ALLPlayerSetting.getDisableItemDrop()) return;
+            if(!ALLPlayerSetting.getDisableDropItem()) return;
             if (ALLPlayerSetting.canDropItem(BuiltInRegistries.ITEM.getKey(event.getEntity().getItem().getItem()).toString()))
             {
                 event.setCanceled(true);

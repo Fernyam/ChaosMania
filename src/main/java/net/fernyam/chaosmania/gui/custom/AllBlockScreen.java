@@ -18,9 +18,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 import static net.fernyam.chaosmania.ChaosManiaMod.MOD_ID;
 
@@ -174,15 +172,16 @@ public class AllBlockScreen extends Screen {
     }
 
     private void loadAllBlocks() {
-        allBlocksMasterList = new ArrayList<>();
+        Set<MainSettingScreen.BlockEntry> allBlocksSet = new HashSet<>();
 
         for (Item item : BuiltInRegistries.ITEM) {
             if (!(item instanceof BlockItem)) continue;
             Block block = ((BlockItem) item).getBlock();
             if (block == Blocks.AIR) continue;
-            allBlocksMasterList.add(new MainSettingScreen.BlockEntry(block, new ItemStack(item)));
+            allBlocksSet.add(new MainSettingScreen.BlockEntry(block, new ItemStack(item)));
         }
 
+        allBlocksMasterList = new ArrayList<>(allBlocksSet);
         sortBlocksWithActiveFirst(allBlocksMasterList);
         updateBlockListWithFilter();
     }

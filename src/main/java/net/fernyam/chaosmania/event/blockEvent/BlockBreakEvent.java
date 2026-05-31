@@ -4,6 +4,7 @@ import net.fernyam.chaosmania.ChaosManiaMod;
 import net.fernyam.chaosmania.data.JSONSettingCreate;
 import net.fernyam.chaosmania.data.PlayerSettings;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.neoforge.event.level.BlockEvent;
 
@@ -17,7 +18,7 @@ public class BlockBreakEvent {
         if(event.getLevel().isClientSide()) return;
 
 
-        if (event.getPlayer() instanceof Player player) {
+        if (event.getPlayer() instanceof ServerPlayer player) {
             PlayerSettings ALLPlayerSetting = JSONSettingCreate.GetPlayerSettingsOfUUID(UUID.fromString(JSONSettingCreate.ALL_UUID_PLAYER));
             PlayerSettings playerSettings = JSONSettingCreate.GetPlayerSettingsOfUUID(player.getUUID());
 

@@ -292,4 +292,106 @@ public class JSONSettingCreate {
         return canPickupItem(uuid, id);
     }
 
+    //=================================== Семена ==========================
+
+    public static void ElementToSettingSeed(UUID uuid, Item item) {
+        List<PlayerSettings> allSettings = loadSettings();
+
+        PlayerSettings settings = GetPlayerSettingsOfUUIDAndListPlayerSettings(uuid , allSettings);
+        if (settings != null) {
+            String id = BuiltInRegistries.ITEM.getKey(item).toString();
+            if (settings.isPlantSeedExists(id)) {
+                settings.removeSeedElement(item);
+            } else {
+                settings.addSeedElement(item);
+            }
+            saveSettings(allSettings);
+        }
+    }
+
+    public static void SwitchDisableSeedPlan(UUID uuid, String idItem) {
+        List<PlayerSettings> allSettings = loadSettings();
+
+        PlayerSettings settings = GetPlayerSettingsOfUUIDAndListPlayerSettings(uuid , allSettings);
+        if (settings != null) {
+            settings.toggleSeedPlan(idItem);
+            saveSettings(allSettings);
+        }
+    }
+
+    public static void SwitchGlobalDisablePlanSeed(UUID uuid) {
+        List<PlayerSettings> allSettings = loadSettings();
+
+        PlayerSettings settings = GetPlayerSettingsOfUUIDAndListPlayerSettings(uuid , allSettings);
+        if (settings != null) {
+            settings.toggleDisablePlantingSeed();
+            saveSettings(allSettings);
+        }
+    }
+
+
+// ============================= Жители ====================================
+
+
+    public static void SwitchGlobalDisableWanderingTraderTrade(UUID uuid) {
+        List<PlayerSettings> allSettings = loadSettings();
+
+        PlayerSettings settings = GetPlayerSettingsOfUUIDAndListPlayerSettings(uuid, allSettings);
+        if (settings != null) {
+            settings.toggleDisableTradingWanderingTrader();
+            saveSettings(allSettings);
+        }
+    }
+
+    // Глобальный переключатель запрета торговли
+    public static void SwitchGlobalDisableVillagerTrade(UUID uuid) {
+        List<PlayerSettings> allSettings = loadSettings();
+
+        PlayerSettings settings = GetPlayerSettingsOfUUIDAndListPlayerSettings(uuid, allSettings);
+        if (settings != null) {
+            settings.toggleDisableTradingVillager();
+            saveSettings(allSettings);
+        }
+    }
+
+    // Переключатель для конкретной профессии
+    public static void SwitchDisableVillagerTrade(UUID uuid, String professionId) {
+        List<PlayerSettings> allSettings = loadSettings();
+
+        PlayerSettings settings = GetPlayerSettingsOfUUIDAndListPlayerSettings(uuid, allSettings);
+        if (settings != null) {
+            settings.toggleVillagerTrade(professionId);
+            saveSettings(allSettings);
+        }
+    }
+
+    // Добавить профессию жителя (из AllVillagerScreen)
+    public static void AddVillagerProfession(UUID uuid, String professionId) {
+        List<PlayerSettings> allSettings = loadSettings();
+
+        PlayerSettings settings = GetPlayerSettingsOfUUIDAndListPlayerSettings(uuid, allSettings);
+        if (settings != null) {
+            settings.addVillagerProfession(professionId);
+            saveSettings(allSettings);
+        }
+    }
+
+    // Удалить профессию жителя (из AllVillagerScreen)
+    public static void RemoveVillagerProfession(UUID uuid, String professionId) {
+        List<PlayerSettings> allSettings = loadSettings();
+
+        PlayerSettings settings = GetPlayerSettingsOfUUIDAndListPlayerSettings(uuid, allSettings);
+        if (settings != null) {
+            settings.removeVillagerProfession(professionId);
+            saveSettings(allSettings);
+        }
+    }
+
+    // Проверить, может ли игрок торговать с профессией
+    public static boolean canTradeWithVillager(UUID uuid, String professionId) {
+        PlayerSettings settings = GetPlayerSettingsOfUUID(uuid);
+        return settings != null && settings.canTradeWithVillager(professionId);
+    }
+
+
 }

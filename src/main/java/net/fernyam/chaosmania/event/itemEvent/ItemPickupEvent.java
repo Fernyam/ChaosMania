@@ -18,14 +18,14 @@ public class ItemPickupEvent
 
         if (playerSettings == null || ALLPlayerSetting == null) return;
 
-        if (!playerSettings.getDisableItemPickup()) return;
+        if (!playerSettings.getDisablePickupItem()) return;
 
         if (playerSettings.canPickupItem(BuiltInRegistries.ITEM.getKey(event.getItemEntity().getItem().getItem()).toString())) {
             event.setCanPickup(TriState.FALSE);
         }
         else
         {
-            if(!ALLPlayerSetting.getDisableItemPickup()) return;
+            if(!ALLPlayerSetting.getDisablePickupItem()) return;
             if (ALLPlayerSetting.canPickupItem(BuiltInRegistries.ITEM.getKey(event.getItemEntity().getItem().getItem()).toString()))
             {
                 event.setCanPickup(TriState.FALSE);
