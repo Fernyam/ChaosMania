@@ -1,7 +1,9 @@
 package net.fernyam.chaosmania.gui.custom;
 
-import net.fernyam.chaosmania.data.JSONSettingCreate;
+import net.fernyam.chaosmania.ChaosManiaMod;
+import net.fernyam.chaosmania.data.JSONSettingManager;
 import net.fernyam.chaosmania.data.PlayerSettings;
+import net.fernyam.chaosmania.gui.util.SearchUtils;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -20,9 +22,10 @@ import net.minecraft.world.level.block.Block;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static net.fernyam.chaosmania.ChaosManiaMod.MOD_ID;
-import static net.fernyam.chaosmania.data.JSONSettingCreate.*;
+import static net.fernyam.chaosmania.data.JSONSettingManager.*;
 
 enum ButtonSelect {
     BlockSetting,
@@ -37,7 +40,7 @@ class PlayerInfoData {
     private final String name;
     private final boolean isAllPlayers;
 
-    public static final PlayerInfoData ALL_PLAYERS = new PlayerInfoData(UUID.fromString(ALL_UUID_PLAYER), "§6§l[ВСЕМ]", true);
+    public static final PlayerInfoData ALL_PLAYERS = new PlayerInfoData(ALL_PLAYER_UUID, "§6§l[ВСЕМ]", true);
 
     public PlayerInfoData(UUID uuid, String name) {
         this(uuid, name, false);
@@ -118,23 +121,6 @@ public class MainSettingScreen extends Screen {
     private List<ProfessionVillagerEntry> allVillagersMasterList;
     private String currentVillagersSearchFilter = "";
 
-    // Типы поиска
-    private enum SearchType {
-        NAME,
-        ID,
-        MOD_ID
-    }
-
-    private static class ParsedSearchQuery {
-        SearchType type;
-        String query;
-
-        ParsedSearchQuery(SearchType type, String query) {
-            this.type = type;
-            this.query = query.toLowerCase().trim();
-        }
-    }
-
     public MainSettingScreen() {
         super(Component.empty());
         selectedPlayer = null;
@@ -149,26 +135,6 @@ public class MainSettingScreen extends Screen {
         currentVillagersSearchFilter = "";
     }
 
-    // ==================== Методы для поиска ====================
-
-    private ParsedSearchQuery parseSearchQuery(String searchText) {
-        if (searchText == null || searchText.trim().isEmpty()) {
-            return new ParsedSearchQuery(SearchType.NAME, "");
-        }
-
-        String trimmed = searchText.trim();
-
-        if (trimmed.startsWith(":")) {
-            String query = trimmed.substring(1).trim();
-            return new ParsedSearchQuery(SearchType.ID, query);
-        } else if (trimmed.startsWith("@")) {
-            String query = trimmed.substring(1).trim();
-            return new ParsedSearchQuery(SearchType.MOD_ID, query);
-        } else {
-            return new ParsedSearchQuery(SearchType.NAME, trimmed);
-        }
-    }
-
     // ==================== Методы для блоков ====================
 
     private List<BlockEntry> filterBlocksBySearch(List<BlockEntry> blocks, String searchText) {
@@ -176,54 +142,43 @@ public class MainSettingScreen extends Screen {
             return new ArrayList<>(blocks);
         }
 
-        ParsedSearchQuery parsed = parseSearchQuery(searchText);
+        var query = SearchUtils.parseQuery(searchText);
+        if (query.isEmpty()) return new ArrayList<>(blocks);
 
-        if (parsed.query.isEmpty()) {
-            return new ArrayList<>(blocks);
-        }
+        return blocks.stream()
+                .filter(entry -> {
+                    String name = entry.getName().toLowerCase();
+                    String id = BuiltInRegistries.BLOCK.getKey(entry.getBlock()).toString();
 
-        List<BlockEntry> filtered = new ArrayList<>();
+                    return switch (query.type) {
+                        case NAME -> name.contains(query.query);
+                        case ID -> id.toLowerCase().contains(query.query);
+                        case MOD_ID -> id.split(":")[0].toLowerCase().contains(query.query);
+                    };
+                })
+                .collect(Collectors.toList());
+    }
 
-        switch (parsed.type) {
-            case NAME:
-                for (BlockEntry entry : blocks) {
-                    if (entry.getName().toLowerCase().contains(parsed.query)) {
-                        filtered.add(entry);
-                    }
-                }
-                break;
+    private void sortBlocksWithActiveFirst(List<BlockEntry> blocks) {
+        if (selectedPlayer == null) return;
+        var settings = JSONSettingManager.getSettings(selectedPlayer.getUuid());
+        if (settings == null) return;
 
-            case ID:
-                for (BlockEntry entry : blocks) {
-                    ResourceLocation key = BuiltInRegistries.BLOCK.getKey(entry.getBlock());
-                    String path = key.getPath().toLowerCase();
-                    if (path.contains(parsed.query)) {
-                        filtered.add(entry);
-                    }
-                }
-                break;
-
-            case MOD_ID:
-                for (BlockEntry entry : blocks) {
-                    ResourceLocation key = BuiltInRegistries.BLOCK.getKey(entry.getBlock());
-                    String modId = key.getNamespace().toLowerCase();
-                    if (modId.contains(parsed.query)) {
-                        filtered.add(entry);
-                    }
-                }
-                break;
-        }
-
-        return filtered;
+        SearchUtils.sortWithActiveFirst(
+                blocks,
+                entry -> settings.isBlockExists(BuiltInRegistries.BLOCK.getKey(entry.getBlock()).toString()),
+                BlockEntry::getName
+        );
     }
 
     private void loadSelectBlockList() {
         Set<BlockEntry> allBlocksSet = new HashSet<>();
-
         if (selectedPlayer == null) return;
 
-        var allID = JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).getAllBlockID();
+        var settings = JSONSettingManager.getSettings(selectedPlayer.getUuid());
+        if (settings == null) return;
 
+        var allID = settings.getAllBlockID();
         for (String id : allID) {
             ResourceLocation location = ResourceLocation.tryParse(id);
             if (location != null && BuiltInRegistries.BLOCK.containsKey(location)) {
@@ -235,12 +190,14 @@ public class MainSettingScreen extends Screen {
         }
 
         allBlocksMasterList = new ArrayList<>(allBlocksSet);
+        sortBlocksWithActiveFirst(allBlocksMasterList);
         updateBlockListWithFilter();
     }
 
     private void updateBlockListWithFilter() {
         if (blockListScroll != null && allBlocksMasterList != null) {
             List<BlockEntry> filtered = filterBlocksBySearch(allBlocksMasterList, currentBlockSearchFilter);
+            sortBlocksWithActiveFirst(filtered);
             blockListScroll.updateEntries(filtered);
         }
     }
@@ -252,54 +209,43 @@ public class MainSettingScreen extends Screen {
             return new ArrayList<>(items);
         }
 
-        ParsedSearchQuery parsed = parseSearchQuery(searchText);
+        var query = SearchUtils.parseQuery(searchText);
+        if (query.isEmpty()) return new ArrayList<>(items);
 
-        if (parsed.query.isEmpty()) {
-            return new ArrayList<>(items);
-        }
+        return items.stream()
+                .filter(entry -> {
+                    String name = entry.getName().toLowerCase();
+                    String id = BuiltInRegistries.ITEM.getKey(entry.getItem()).toString();
 
-        List<ItemEntry> filtered = new ArrayList<>();
+                    return switch (query.type) {
+                        case NAME -> name.contains(query.query);
+                        case ID -> id.toLowerCase().contains(query.query);
+                        case MOD_ID -> id.split(":")[0].toLowerCase().contains(query.query);
+                    };
+                })
+                .collect(Collectors.toList());
+    }
 
-        switch (parsed.type) {
-            case NAME:
-                for (ItemEntry entry : items) {
-                    if (entry.getName().toLowerCase().contains(parsed.query)) {
-                        filtered.add(entry);
-                    }
-                }
-                break;
+    private void sortItemsWithActiveFirst(List<ItemEntry> items) {
+        if (selectedPlayer == null) return;
+        var settings = JSONSettingManager.getSettings(selectedPlayer.getUuid());
+        if (settings == null) return;
 
-            case ID:
-                for (ItemEntry entry : items) {
-                    ResourceLocation key = BuiltInRegistries.ITEM.getKey(entry.getItem());
-                    String path = key.getPath().toLowerCase();
-                    if (path.contains(parsed.query)) {
-                        filtered.add(entry);
-                    }
-                }
-                break;
-
-            case MOD_ID:
-                for (ItemEntry entry : items) {
-                    ResourceLocation key = BuiltInRegistries.ITEM.getKey(entry.getItem());
-                    String modId = key.getNamespace().toLowerCase();
-                    if (modId.contains(parsed.query)) {
-                        filtered.add(entry);
-                    }
-                }
-                break;
-        }
-
-        return filtered;
+        SearchUtils.sortWithActiveFirst(
+                items,
+                entry -> settings.isItemExists(BuiltInRegistries.ITEM.getKey(entry.getItem()).toString()),
+                ItemEntry::getName
+        );
     }
 
     private void loadSelectItemList() {
         Set<ItemEntry> allItemsSet = new HashSet<>();
-
         if (selectedPlayer == null) return;
 
-        var allID = JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).getAllItemID();
+        var settings = JSONSettingManager.getSettings(selectedPlayer.getUuid());
+        if (settings == null) return;
 
+        var allID = settings.getAllItemID();
         for (String id : allID) {
             ResourceLocation location = ResourceLocation.tryParse(id);
             if (location != null && BuiltInRegistries.ITEM.containsKey(location)) {
@@ -311,12 +257,14 @@ public class MainSettingScreen extends Screen {
         }
 
         allItemsMasterList = new ArrayList<>(allItemsSet);
+        sortItemsWithActiveFirst(allItemsMasterList);
         updateItemListWithFilter();
     }
 
     private void updateItemListWithFilter() {
         if (itemListScroll != null && allItemsMasterList != null) {
             List<ItemEntry> filtered = filterItemsBySearch(allItemsMasterList, currentItemSearchFilter);
+            sortItemsWithActiveFirst(filtered);
             itemListScroll.updateEntries(filtered);
         }
     }
@@ -328,54 +276,43 @@ public class MainSettingScreen extends Screen {
             return new ArrayList<>(items);
         }
 
-        ParsedSearchQuery parsed = parseSearchQuery(searchText);
+        var query = SearchUtils.parseQuery(searchText);
+        if (query.isEmpty()) return new ArrayList<>(items);
 
-        if (parsed.query.isEmpty()) {
-            return new ArrayList<>(items);
-        }
+        return items.stream()
+                .filter(entry -> {
+                    String name = entry.getName().toLowerCase();
+                    String id = BuiltInRegistries.ITEM.getKey(entry.getItem()).toString();
 
-        List<ItemEntry> filtered = new ArrayList<>();
+                    return switch (query.type) {
+                        case NAME -> name.contains(query.query);
+                        case ID -> id.toLowerCase().contains(query.query);
+                        case MOD_ID -> id.split(":")[0].toLowerCase().contains(query.query);
+                    };
+                })
+                .collect(Collectors.toList());
+    }
 
-        switch (parsed.type) {
-            case NAME:
-                for (ItemEntry entry : items) {
-                    if (entry.getName().toLowerCase().contains(parsed.query)) {
-                        filtered.add(entry);
-                    }
-                }
-                break;
+    private void sortSeedsWithActiveFirst(List<ItemEntry> items) {
+        if (selectedPlayer == null) return;
+        var settings = JSONSettingManager.getSettings(selectedPlayer.getUuid());
+        if (settings == null) return;
 
-            case ID:
-                for (ItemEntry entry : items) {
-                    ResourceLocation key = BuiltInRegistries.ITEM.getKey(entry.getItem());
-                    String path = key.getPath().toLowerCase();
-                    if (path.contains(parsed.query)) {
-                        filtered.add(entry);
-                    }
-                }
-                break;
-
-            case MOD_ID:
-                for (ItemEntry entry : items) {
-                    ResourceLocation key = BuiltInRegistries.ITEM.getKey(entry.getItem());
-                    String modId = key.getNamespace().toLowerCase();
-                    if (modId.contains(parsed.query)) {
-                        filtered.add(entry);
-                    }
-                }
-                break;
-        }
-
-        return filtered;
+        SearchUtils.sortWithActiveFirst(
+                items,
+                entry -> settings.isSeedExists(BuiltInRegistries.ITEM.getKey(entry.getItem()).toString()),
+                ItemEntry::getName
+        );
     }
 
     private void loadSelectSeedsList() {
         Set<ItemEntry> allSeedsSet = new HashSet<>();
-
         if (selectedPlayer == null) return;
 
-        var allID = JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).getAllSeedID();
+        var settings = JSONSettingManager.getSettings(selectedPlayer.getUuid());
+        if (settings == null) return;
 
+        var allID = settings.getAllSeedID();
         for (String id : allID) {
             ResourceLocation location = ResourceLocation.tryParse(id);
             if (location != null && BuiltInRegistries.ITEM.containsKey(location)) {
@@ -387,12 +324,14 @@ public class MainSettingScreen extends Screen {
         }
 
         allSeedsMasterList = new ArrayList<>(allSeedsSet);
+        sortSeedsWithActiveFirst(allSeedsMasterList);
         updateSeedsListWithFilter();
     }
 
     private void updateSeedsListWithFilter() {
         if (seedListScroll != null && allSeedsMasterList != null) {
             List<ItemEntry> filtered = filterSeedsBySearch(allSeedsMasterList, currentSeedsSearchFilter);
+            sortSeedsWithActiveFirst(filtered);
             seedListScroll.updateEntries(filtered);
         }
     }
@@ -404,54 +343,43 @@ public class MainSettingScreen extends Screen {
             return new ArrayList<>(professions);
         }
 
-        ParsedSearchQuery parsed = parseSearchQuery(searchText);
+        var query = SearchUtils.parseQuery(searchText);
+        if (query.isEmpty()) return new ArrayList<>(professions);
 
-        if (parsed.query.isEmpty()) {
-            return new ArrayList<>(professions);
-        }
+        return professions.stream()
+                .filter(entry -> {
+                    String name = entry.getName().toLowerCase();
+                    String id = BuiltInRegistries.VILLAGER_PROFESSION.getKey(entry.getProfession()).toString();
 
-        List<ProfessionVillagerEntry> filtered = new ArrayList<>();
+                    return switch (query.type) {
+                        case NAME -> name.contains(query.query);
+                        case ID -> id.toLowerCase().contains(query.query);
+                        case MOD_ID -> id.split(":")[0].toLowerCase().contains(query.query);
+                    };
+                })
+                .collect(Collectors.toList());
+    }
 
-        switch (parsed.type) {
-            case NAME:
-                for (ProfessionVillagerEntry entry : professions) {
-                    if (entry.getName().toLowerCase().contains(parsed.query)) {
-                        filtered.add(entry);
-                    }
-                }
-                break;
+    private void sortVillagersWithActiveFirst(List<ProfessionVillagerEntry> professions) {
+        if (selectedPlayer == null) return;
+        var settings = JSONSettingManager.getSettings(selectedPlayer.getUuid());
+        if (settings == null) return;
 
-            case ID:
-                for (ProfessionVillagerEntry entry : professions) {
-                    ResourceLocation key = BuiltInRegistries.VILLAGER_PROFESSION.getKey(entry.getProfession());
-                    String path = key.getPath().toLowerCase();
-                    if (path.contains(parsed.query)) {
-                        filtered.add(entry);
-                    }
-                }
-                break;
-
-            case MOD_ID:
-                for (ProfessionVillagerEntry entry : professions) {
-                    ResourceLocation key = BuiltInRegistries.VILLAGER_PROFESSION.getKey(entry.getProfession());
-                    String modId = key.getNamespace().toLowerCase();
-                    if (modId.contains(parsed.query)) {
-                        filtered.add(entry);
-                    }
-                }
-                break;
-        }
-
-        return filtered;
+        SearchUtils.sortWithActiveFirst(
+                professions,
+                entry -> settings.isVillagerProfessionExists(entry.getId()),
+                ProfessionVillagerEntry::getName
+        );
     }
 
     private void loadSelectVillagerList() {
         Set<ProfessionVillagerEntry> allVillagersSet = new HashSet<>();
-
         if (selectedPlayer == null) return;
 
-        var allID = JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).getAllVillagerProfessionIds();
+        var settings = JSONSettingManager.getSettings(selectedPlayer.getUuid());
+        if (settings == null) return;
 
+        var allID = settings.getAllVillagerProfessionIds();
         for (String id : allID) {
             ResourceLocation location = ResourceLocation.tryParse(id);
             if (location != null && BuiltInRegistries.VILLAGER_PROFESSION.containsKey(location)) {
@@ -462,12 +390,14 @@ public class MainSettingScreen extends Screen {
         }
 
         allVillagersMasterList = new ArrayList<>(allVillagersSet);
+        sortVillagersWithActiveFirst(allVillagersMasterList);
         updateVillagersListWithFilter();
     }
 
     private void updateVillagersListWithFilter() {
         if (villagerScroll != null && allVillagersMasterList != null) {
             List<ProfessionVillagerEntry> filtered = filterVillagersBySearch(allVillagersMasterList, currentVillagersSearchFilter);
+            sortVillagersWithActiveFirst(filtered);
             villagerScroll.updateEntries(filtered);
         }
     }
@@ -477,8 +407,9 @@ public class MainSettingScreen extends Screen {
     private List<PlayerInfoData> getOnlinePlayers() {
         Set<PlayerInfoData> playersSet = new HashSet<>();
 
-        for (PlayerSettings playerSett : JSONSettingCreate.loadSettings()) {
-            if (Objects.equals(playerSett.getUuidPlayer(), ALL_UUID_PLAYER)) {
+        for (PlayerSettings playerSett : JSONSettingManager.getAllSettings()) {
+
+            if (Objects.equals(playerSett.getUuidPlayer(), PlayerInfoData.ALL_PLAYERS.getUuid().toString())) {
                 playersSet.add(PlayerInfoData.ALL_PLAYERS);
                 continue;
             }
@@ -592,19 +523,7 @@ public class MainSettingScreen extends Screen {
 
                     this.searchAllSelectObj.setResponder(searchText -> {
                         currentBlockSearchFilter = searchText;
-
-                        if (searchText != null && !searchText.isEmpty()) {
-                            if (searchText.startsWith(":")) {
-                                searchAllSelectObj.setTextColor(0xFFFF55);
-                            } else if (searchText.startsWith("@")) {
-                                searchAllSelectObj.setTextColor(0x55FFFF);
-                            } else {
-                                searchAllSelectObj.setTextColor(0xFFFFFF);
-                            }
-                        } else {
-                            searchAllSelectObj.setTextColor(0xFFFFFF);
-                        }
-
+                        searchAllSelectObj.setTextColor(SearchUtils.getSearchTextColor(searchText));
                         updateBlockListWithFilter();
                     });
 
@@ -616,19 +535,19 @@ public class MainSettingScreen extends Screen {
                     ).bounds(getWidth() / 2 + 105, getHeight() / 2 - 50, buttonWidth - 37, BUTTON_HEIGHT + 8).build());
 
                     addRenderableWidget(Button.builder(
-                            Component.literal("Запрет на установку: " + (JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).getDisablePlaceBlock() ? "§aВКЛ" : "§cВЫКЛ")),
+                            Component.literal("Запрет на установку: " + (JSONSettingManager.getSettings(selectedPlayer.getUuid()).getDisablePlaceBlock() ? "§aВКЛ" : "§cВЫКЛ")),
                             button -> {
-                                boolean current = JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).getDisablePlaceBlock();
-                                JSONSettingCreate.SwitchGlobalDisablePlaceBlock(selectedPlayer.getUuid());
+                                boolean current = JSONSettingManager.getSettings(selectedPlayer.getUuid()).getDisablePlaceBlock();
+                                JSONSettingManager.toggleGlobalBlockPlace(selectedPlayer.getUuid());
                                 button.setMessage(Component.literal("Запрет на установку: " + (!current ? "§aВКЛ" : "§cВЫКЛ")));
                             }
                     ).bounds(getWidth() / 2 + 105, getHeight() / 2 - 18, buttonWidth - 37, BUTTON_HEIGHT + 3).build());
 
                     addRenderableWidget(Button.builder(
-                            Component.literal("Запрет на ломание: " + (JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).getDisableBreakBlock() ? "§aВКЛ" : "§cВЫКЛ")),
+                            Component.literal("Запрет на ломание: " + (JSONSettingManager.getSettings(selectedPlayer.getUuid()).getDisableBreakBlock() ? "§aВКЛ" : "§cВЫКЛ")),
                             button -> {
-                                boolean current = JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).getDisableBreakBlock();
-                                JSONSettingCreate.SwitchGlobalDisableBreakBlock(selectedPlayer.getUuid());
+                                boolean current = JSONSettingManager.getSettings(selectedPlayer.getUuid()).getDisableBreakBlock();
+                                JSONSettingManager.toggleGlobalBlockBreak(selectedPlayer.getUuid());
                                 button.setMessage(Component.literal("Запрет на ломание: " + (!current ? "§aВКЛ" : "§cВЫКЛ")));
                             }
                     ).bounds(getWidth() / 2 + 105, getHeight() / 2 + 12, buttonWidth - 37, BUTTON_HEIGHT + 3).build());
@@ -645,19 +564,7 @@ public class MainSettingScreen extends Screen {
 
                     this.searchAllSelectObj.setResponder(searchText -> {
                         currentItemSearchFilter = searchText;
-
-                        if (searchText != null && !searchText.isEmpty()) {
-                            if (searchText.startsWith(":")) {
-                                searchAllSelectObj.setTextColor(0xFFFF55);
-                            } else if (searchText.startsWith("@")) {
-                                searchAllSelectObj.setTextColor(0x55FFFF);
-                            } else {
-                                searchAllSelectObj.setTextColor(0xFFFFFF);
-                            }
-                        } else {
-                            searchAllSelectObj.setTextColor(0xFFFFFF);
-                        }
-
+                        searchAllSelectObj.setTextColor(SearchUtils.getSearchTextColor(searchText));
                         updateItemListWithFilter();
                     });
 
@@ -669,19 +576,19 @@ public class MainSettingScreen extends Screen {
                     ).bounds(getWidth() / 2 + 105, getHeight() / 2 - 50, buttonWidth - 37, BUTTON_HEIGHT + 8).build());
 
                     addRenderableWidget(Button.builder(
-                            Component.literal("Запрет на выбрасывание: " + (JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).getDisableDropItem() ? "§aВКЛ" : "§cВЫКЛ")),
+                            Component.literal("Запрет на выбрасывание: " + (JSONSettingManager.getSettings(selectedPlayer.getUuid()).getDisableDropItem() ? "§aВКЛ" : "§cВЫКЛ")),
                             button -> {
-                                boolean current = JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).getDisableDropItem();
-                                JSONSettingCreate.SwitchGlobalDisableItemDrop(selectedPlayer.getUuid());
+                                boolean current = JSONSettingManager.getSettings(selectedPlayer.getUuid()).getDisableDropItem();
+                                JSONSettingManager.toggleGlobalItemDrop(selectedPlayer.getUuid());
                                 button.setMessage(Component.literal("Запрет на выбрасывание: " + (!current ? "§aВКЛ" : "§cВЫКЛ")));
                             }
                     ).bounds(getWidth() / 2 + 105, getHeight() / 2 - 18, buttonWidth - 37, BUTTON_HEIGHT + 3).build());
 
                     addRenderableWidget(Button.builder(
-                            Component.literal("Запрет на подбор: " + (JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).getDisablePickupItem() ? "§aВКЛ" : "§cВЫКЛ")),
+                            Component.literal("Запрет на подбор: " + (JSONSettingManager.getSettings(selectedPlayer.getUuid()).getDisablePickupItem() ? "§aВКЛ" : "§cВЫКЛ")),
                             button -> {
-                                boolean current = JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).getDisablePickupItem();
-                                JSONSettingCreate.SwitchGlobalDisableItemPickup(selectedPlayer.getUuid());
+                                boolean current = JSONSettingManager.getSettings(selectedPlayer.getUuid()).getDisablePickupItem();
+                                JSONSettingManager.toggleGlobalItemPickup(selectedPlayer.getUuid());
                                 button.setMessage(Component.literal("Запрет на подбор: " + (!current ? "§aВКЛ" : "§cВЫКЛ")));
                             }
                     ).bounds(getWidth() / 2 + 105, getHeight() / 2 + 12, buttonWidth - 37, BUTTON_HEIGHT + 3).build());
@@ -698,19 +605,7 @@ public class MainSettingScreen extends Screen {
 
                     this.searchAllSelectObj.setResponder(searchText -> {
                         currentSeedsSearchFilter = searchText;
-
-                        if (searchText != null && !searchText.isEmpty()) {
-                            if (searchText.startsWith(":")) {
-                                searchAllSelectObj.setTextColor(0xFFFF55);
-                            } else if (searchText.startsWith("@")) {
-                                searchAllSelectObj.setTextColor(0x55FFFF);
-                            } else {
-                                searchAllSelectObj.setTextColor(0xFFFFFF);
-                            }
-                        } else {
-                            searchAllSelectObj.setTextColor(0xFFFFFF);
-                        }
-
+                        searchAllSelectObj.setTextColor(SearchUtils.getSearchTextColor(searchText));
                         updateSeedsListWithFilter();
                     });
 
@@ -722,10 +617,10 @@ public class MainSettingScreen extends Screen {
                     ).bounds(getWidth() / 2 + 105, getHeight() / 2 - 50, buttonWidth - 37, BUTTON_HEIGHT + 8).build());
 
                     addRenderableWidget(Button.builder(
-                            Component.literal("Запрет на посадку: " + (JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).getDisablePlantingSeed() ? "§aВКЛ" : "§cВЫКЛ")),
+                            Component.literal("Запрет на посадку: " + (JSONSettingManager.getSettings(selectedPlayer.getUuid()).getDisablePlantingSeed() ? "§aВКЛ" : "§cВЫКЛ")),
                             button -> {
-                                boolean current = JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).getDisablePlantingSeed();
-                                JSONSettingCreate.SwitchGlobalDisablePlanSeed(selectedPlayer.getUuid());
+                                boolean current = JSONSettingManager.getSettings(selectedPlayer.getUuid()).getDisablePlantingSeed();
+                                JSONSettingManager.toggleGlobalSeedPlanting(selectedPlayer.getUuid());
                                 button.setMessage(Component.literal("Запрет на посадку: " + (!current ? "§aВКЛ" : "§cВЫКЛ")));
                             }
                     ).bounds(getWidth() / 2 + 105, getHeight() / 2 - 18, buttonWidth - 37, BUTTON_HEIGHT + 3).build());
@@ -742,19 +637,7 @@ public class MainSettingScreen extends Screen {
 
                     this.searchAllSelectObj.setResponder(searchText -> {
                         currentVillagersSearchFilter = searchText;
-
-                        if (searchText != null && !searchText.isEmpty()) {
-                            if (searchText.startsWith(":")) {
-                                searchAllSelectObj.setTextColor(0xFFFF55);
-                            } else if (searchText.startsWith("@")) {
-                                searchAllSelectObj.setTextColor(0x55FFFF);
-                            } else {
-                                searchAllSelectObj.setTextColor(0xFFFFFF);
-                            }
-                        } else {
-                            searchAllSelectObj.setTextColor(0xFFFFFF);
-                        }
-
+                        searchAllSelectObj.setTextColor(SearchUtils.getSearchTextColor(searchText));
                         updateVillagersListWithFilter();
                     });
 
@@ -766,19 +649,19 @@ public class MainSettingScreen extends Screen {
                     ).bounds(getWidth() / 2 + 105, getHeight() / 2 - 50, buttonWidth - 37, BUTTON_HEIGHT + 8).build());
 
                     addRenderableWidget(Button.builder(
-                            Component.literal("Запрет на торговлю: " + (JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).getDisableTradingVillager() ? "§aВКЛ" : "§cВЫКЛ")),
+                            Component.literal("Запрет на торговлю: " + (JSONSettingManager.getSettings(selectedPlayer.getUuid()).getDisableTradingVillager() ? "§aВКЛ" : "§cВЫКЛ")),
                             button -> {
-                                boolean current = JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).getDisableTradingVillager();
-                                JSONSettingCreate.SwitchGlobalDisableVillagerTrade(selectedPlayer.getUuid());
+                                boolean current = JSONSettingManager.getSettings(selectedPlayer.getUuid()).getDisableTradingVillager();
+                                JSONSettingManager.toggleGlobalVillagerTrade(selectedPlayer.getUuid());
                                 button.setMessage(Component.literal("Запрет на торговлю: " + (!current ? "§aВКЛ" : "§cВЫКЛ")));
                             }
                     ).bounds(getWidth() / 2 + 105, getHeight() / 2 - 18, buttonWidth - 37, BUTTON_HEIGHT + 3).build());
 
                     addRenderableWidget(Button.builder(
-                            Component.literal("Запрет на торговлю со странствующими торговцами: " + (JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).getDisableTradingWanderingTrader() ? "§aВКЛ" : "§cВЫКЛ")),
+                            Component.literal("Запрет на торговлю со странствующими торговцами: " + (JSONSettingManager.getSettings(selectedPlayer.getUuid()).getDisableTradingWanderingTrader() ? "§aВКЛ" : "§cВЫКЛ")),
                             button -> {
-                                boolean current = JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).getDisableTradingWanderingTrader();
-                                JSONSettingCreate.SwitchGlobalDisableWanderingTraderTrade(selectedPlayer.getUuid());
+                                boolean current = JSONSettingManager.getSettings(selectedPlayer.getUuid()).getDisableTradingWanderingTrader();
+                                JSONSettingManager.toggleGlobalWanderingTraderTrade(selectedPlayer.getUuid());
                                 button.setMessage(Component.literal("Запрет на торговлю со странствующими торговцами: " + (!current ? "§aВКЛ" : "§cВЫКЛ")));
                             }
                     ).bounds(getWidth() / 2 + 105, getHeight() / 2 - 18 + BUTTON_HEIGHT + 5, buttonWidth - 37, BUTTON_HEIGHT + 3).build());
@@ -970,8 +853,7 @@ public class MainSettingScreen extends Screen {
             return Objects.equals(item, that.item);
         }
 
-        @Override
-        public int hashCode() {
+        @Override        public int hashCode() {
             return Objects.hash(item);
         }
     }
@@ -1019,7 +901,6 @@ public class MainSettingScreen extends Screen {
             Component translated = Component.translatable(translationKey);
             String result = translated.getString();
 
-            // Если перевод не найден, используем форматированный path
             if (result.equals(translationKey)) {
                 String path = id.getPath();
                 result = path.substring(0, 1).toUpperCase() + path.substring(1).replace("_", " ");
@@ -1161,20 +1042,20 @@ public class MainSettingScreen extends Screen {
                 this.block = block;
 
                 this.DisableplaceItemButton = Button.builder(
-                                Component.literal(!JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).canPlaceBlock(BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString()) ? "✖" : "✔"),
+                                Component.literal(!JSONSettingManager.getSettings(selectedPlayer.getUuid()).canPlaceBlock(BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString()) ? "✖" : "✔"),
                                 button -> {
-                                    JSONSettingCreate.SwitchDisablePlaceBlock(selectedPlayer.getUuid(), BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString());
-                                    button.setMessage(Component.literal(!JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).canPlaceBlock(BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString()) ? "✖" : "✔"));
+                                    JSONSettingManager.toggleBlockPlace(selectedPlayer.getUuid(), BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString());
+                                    button.setMessage(Component.literal(!JSONSettingManager.getSettings(selectedPlayer.getUuid()).canPlaceBlock(BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString()) ? "✖" : "✔"));
                                 }
                         ).bounds(0, 0, 20, 20)
                         .tooltip(Tooltip.create(Component.literal("Запретить устанавливать блоки")))
                         .build();
 
                 this.DisableBreakItemButton = Button.builder(
-                                Component.literal(!JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).canBreakBlock(BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString()) ? "✖" : "✔"),
+                                Component.literal(!JSONSettingManager.getSettings(selectedPlayer.getUuid()).canBreakBlock(BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString()) ? "✖" : "✔"),
                                 button -> {
-                                    JSONSettingCreate.SwitchDisableBreakBlock(selectedPlayer.getUuid(), BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString());
-                                    button.setMessage(Component.literal(!JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).canBreakBlock(BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString()) ? "✖" : "✔"));
+                                    JSONSettingManager.toggleBlockBreak(selectedPlayer.getUuid(), BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString());
+                                    button.setMessage(Component.literal(!JSONSettingManager.getSettings(selectedPlayer.getUuid()).canBreakBlock(BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString()) ? "✖" : "✔"));
                                 }
                         ).bounds(0, 0, 20, 20)
                         .tooltip(Tooltip.create(Component.literal("Запретить ломать блоки")))
@@ -1278,20 +1159,20 @@ public class MainSettingScreen extends Screen {
                 this.item = item;
 
                 this.DisableDropItemButton = Button.builder(
-                                Component.literal(!JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).canDropItem(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "✖" : "✔"),
+                                Component.literal(!JSONSettingManager.getSettings(selectedPlayer.getUuid()).canDropItem(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "✖" : "✔"),
                                 button -> {
-                                    JSONSettingCreate.SwitchDisableItemDrop(selectedPlayer.getUuid(), BuiltInRegistries.ITEM.getKey(item.getItem()).toString());
-                                    button.setMessage(Component.literal(!JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).canDropItem(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "✖" : "✔"));
+                                    JSONSettingManager.toggleItemDrop(selectedPlayer.getUuid(), BuiltInRegistries.ITEM.getKey(item.getItem()).toString());
+                                    button.setMessage(Component.literal(!JSONSettingManager.getSettings(selectedPlayer.getUuid()).canDropItem(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "✖" : "✔"));
                                 }
                         ).bounds(0, 0, 20, 20)
                         .tooltip(Tooltip.create(Component.literal("Запретить выбрасывать предмет")))
                         .build();
 
                 this.DisablePickupItemButton = Button.builder(
-                                Component.literal(!JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).canPickupItem(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "✖" : "✔"),
+                                Component.literal(!JSONSettingManager.getSettings(selectedPlayer.getUuid()).canPickupItem(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "✖" : "✔"),
                                 button -> {
-                                    JSONSettingCreate.SwitchDisableItemPickup(selectedPlayer.getUuid(), BuiltInRegistries.ITEM.getKey(item.getItem()).toString());
-                                    button.setMessage(Component.literal(!JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).canPickupItem(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "✖" : "✔"));
+                                    JSONSettingManager.toggleItemPickup(selectedPlayer.getUuid(), BuiltInRegistries.ITEM.getKey(item.getItem()).toString());
+                                    button.setMessage(Component.literal(!JSONSettingManager.getSettings(selectedPlayer.getUuid()).canPickupItem(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "✖" : "✔"));
                                 }
                         ).bounds(0, 0, 20, 20)
                         .tooltip(Tooltip.create(Component.literal("Запретить подбирать предмет")))
@@ -1394,10 +1275,10 @@ public class MainSettingScreen extends Screen {
                 this.item = item;
 
                 this.DisablePlanSeedButton = Button.builder(
-                                Component.literal(!JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).canPlanSeed(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "✖" : "✔"),
+                                Component.literal(!JSONSettingManager.getSettings(selectedPlayer.getUuid()).canPlanSeed(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "✖" : "✔"),
                                 button -> {
-                                    JSONSettingCreate.SwitchDisableSeedPlan(selectedPlayer.getUuid(), BuiltInRegistries.ITEM.getKey(item.getItem()).toString());
-                                    button.setMessage(Component.literal(!JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).canPlanSeed(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "✖" : "✔"));
+                                    JSONSettingManager.toggleSeedPlanting(selectedPlayer.getUuid(), BuiltInRegistries.ITEM.getKey(item.getItem()).toString());
+                                    button.setMessage(Component.literal(!JSONSettingManager.getSettings(selectedPlayer.getUuid()).canPlanSeed(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "✖" : "✔"));
                                 }
                         ).bounds(0, 0, 20, 20)
                         .tooltip(Tooltip.create(Component.literal("Запретить сажать культуру")))
@@ -1491,10 +1372,11 @@ public class MainSettingScreen extends Screen {
                 this.profession = profession;
 
                 this.DisableTradVillagerButton = Button.builder(
-                                Component.literal(!JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).canTradeWithVillager(profession.getId()) ? "✖" : "✔"),
+                                Component.literal(!JSONSettingManager.getSettings(selectedPlayer.getUuid()).canTradeWithVillager(profession.getId()) ? "✖" : "✔"),
                                 button -> {
-                                    JSONSettingCreate.SwitchDisableVillagerTrade(selectedPlayer.getUuid(), profession.getId());
-                                    button.setMessage(Component.literal(!JSONSettingCreate.GetPlayerSettingsOfUUID(selectedPlayer.getUuid()).canTradeWithVillager(profession.getId()) ? "✖" : "✔"));
+                                    ChaosManiaMod.LOGGER.info(JSONSettingManager.getSettings(selectedPlayer.getUuid()).canTradeWithVillager(profession.getId()) ? "✖" : "✔");
+                                    JSONSettingManager.toggleVillagerTrade(selectedPlayer.getUuid(), profession.getId());
+                                    button.setMessage(Component.literal(!JSONSettingManager.getSettings(selectedPlayer.getUuid()).canTradeWithVillager(profession.getId()) ? "✖" : "✔"));
                                 }
                         ).bounds(0, 0, 20, 20)
                         .tooltip(Tooltip.create(Component.literal("Запретить торговлю")))
