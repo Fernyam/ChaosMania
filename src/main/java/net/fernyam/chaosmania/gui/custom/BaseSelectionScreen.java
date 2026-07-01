@@ -1,5 +1,6 @@
 package net.fernyam.chaosmania.gui.custom;
 
+import net.fernyam.chaosmania.data.settings.SettingsManager;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -59,6 +60,7 @@ public abstract class BaseSelectionScreen<T> extends Screen {
     protected void init() {
         super.init();
         int centerX = width / 2;
+
         addRenderableWidget(Button.builder(
                 Component.literal("← Назад"),
                 btn -> minecraft.setScreen(parentScreen)
@@ -163,7 +165,7 @@ public abstract class BaseSelectionScreen<T> extends Screen {
     public Font getFontRender() { return minecraft.font; }
 
     // ==================== Внутренние классы ====================
-    // Нестатический класс EntryObj, использующий T внешнего
+
     public class EntryObj {
         public final T element;
         public final String name;
@@ -202,7 +204,6 @@ public abstract class BaseSelectionScreen<T> extends Screen {
             public Slot(EntryObj entry) {
                 this.entry = entry;
 
-                // Создаём кнопку с временным текстом
                 this.actionButton = Button.builder(
                         Component.literal("?"),
                         btn -> {
@@ -211,7 +212,6 @@ public abstract class BaseSelectionScreen<T> extends Screen {
                             } else {
                                 parent.addElementToPlayer(entry.element);
                             }
-                            // После изменения обновляем текст кнопки
                             updateButtonText();
                             parent.updateListFilter();
                         }
@@ -229,7 +229,6 @@ public abstract class BaseSelectionScreen<T> extends Screen {
             public void render(@NotNull GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean hovered, float partialTick) {
                 if (parent.minecraft == null) return;
 
-                // Обновляем текст кнопки при каждом рендере (на случай внешних изменений)
                 updateButtonText();
 
                 Font font = parent.minecraft.font;

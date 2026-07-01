@@ -4,6 +4,7 @@ import net.fernyam.chaosmania.ChaosManiaMod;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.npc.VillagerProfession;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
@@ -112,35 +113,85 @@ public class PlayerSettings {
         public boolean canTrade() { return canTradeVillager; }
         public void setTrade(boolean canTrade) { this.canTradeVillager = canTrade; }
         public void toggleTrade() { this.canTradeVillager = !this.canTradeVillager; }
-    }
 
-    // ==================== Вспомогательные методы ====================
-
-    private static String getProfessionDisplayName(String professionId) {
-        try {
-            ResourceLocation id = ResourceLocation.parse(professionId);
-            VillagerProfession profession = BuiltInRegistries.VILLAGER_PROFESSION.get(id);
-            if (profession != null) {
-                String translationKey = "entity." + id.getNamespace() + ".villager." + id.getPath();
-                Component translated = Component.translatable(translationKey);
-                String result = translated.getString();
-                if (!result.equals(translationKey)) {
-                    return result;
+        private static String getProfessionDisplayName(String professionId) {
+            try {
+                ResourceLocation id = ResourceLocation.parse(professionId);
+                VillagerProfession profession = BuiltInRegistries.VILLAGER_PROFESSION.get(id);
+                if (profession != null) {
+                    String translationKey = "entity." + id.getNamespace() + ".villager." + id.getPath();
+                    Component translated = Component.translatable(translationKey);
+                    String result = translated.getString();
+                    if (!result.equals(translationKey)) {
+                        return result;
+                    }
+                    String path = id.getPath();
+                    return path.substring(0, 1).toUpperCase() + path.substring(1).replace("_", " ");
                 }
-                String path = id.getPath();
-                return path.substring(0, 1).toUpperCase() + path.substring(1).replace("_", " ");
+            } catch (Exception e) {
+                ChaosManiaMod.LOGGER.error("Failed to get profession display name: " + professionId, e);
             }
-        } catch (Exception e) {
-            ChaosManiaMod.LOGGER.error("Failed to get profession display name: " + professionId, e);
+            return professionId;
         }
-        return professionId;
     }
+
+    private static class ModSetting {
+        private final String idMod;
+        private boolean canLoad;
+
+        public ModSetting(String idMod, boolean canLoad) {
+            this.idMod = idMod;
+            this.canLoad = canLoad;
+        }
+
+        public ModSetting(String idMod) {
+            this(idMod, false);
+        }
+
+        public String getIdMod() { return idMod; }
+        public boolean canLoad() {return canLoad; }
+        public void setLoad(boolean canLoad) { this.canLoad = canLoad; }
+        public void toggleLoad() { this.canLoad = !this.canLoad; }
+    }
+
+    private static class AnimalSetting {
+        private final String id;        // ResourceLocation животного, например "minecraft:cow"
+        private String name;            // Отображаемое имя
+        private boolean canBreed;       // Может ли размножаться
+        private boolean canSpawn;       // Может ли появляться (опционально)
+
+        public AnimalSetting(String id, String name, boolean canBreed, boolean canSpawn) {
+            this.id = id;
+            this.name = name;
+            this.canBreed = canBreed;
+            this.canSpawn = canSpawn;
+        }
+
+        public AnimalSetting(String id, String name) {
+            this(id, name, false, false);
+        }
+
+        public AnimalSetting(String id) {
+            this(id, getAnimalDisplayName(id), false, false);
+        }
+
+        public String getId() { return id; }
+        public String getName() { return name; }
+        public boolean canBreed() { return canBreed; }
+        public boolean canSpawn() { return canSpawn; }
+        public void setBreed(boolean canBreed) { this.canBreed = canBreed; }
+        public void setSpawn(boolean canSpawn) { this.canSpawn = canSpawn; }
+        public void toggleBreed() { this.canBreed = !this.canBreed; }
+        public void toggleSpawn() { this.canSpawn = !this.canSpawn; }
+    }
+
+
 
     // ==================== Поля класса ====================
 
     private String name;
     private String uuidPlayer;      // Для JSON сериализации
-    private transient UUID uuid;    // Для рантайма (не сохраняется в JSON)
+    private transient String uuid;    // Для рантайма (не сохраняется в JSON)
 
     // Настройки блоков
     private ListType disablePlaceBlockListType;
@@ -167,6 +218,19 @@ public class PlayerSettings {
     private boolean isDisableTradingWanderingTrader;
     private List<VillagerSetting> villagerSettings;
 
+    //Настройка размножения
+    private ListType disableBreedAnimalListType;
+    private ListType disableSpawnAnimalListType;
+    private boolean isDisableBreedAnimal;
+    private boolean isDisableSpawnAnimal;
+    private List<AnimalSetting> animalSettings;
+
+    //Настройки использования модов
+
+    private ListType disableModListType;
+    private boolean isDisableLoadingMod;
+    private List<ModSetting> modSettings;
+
     // ==================== Конструкторы ====================
 
     // Конструктор по умолчанию (нужен для Gson)
@@ -175,16 +239,16 @@ public class PlayerSettings {
     public PlayerSettings(String name, String uuidPlayer) {
         this.name = name;
         this.uuidPlayer = uuidPlayer;
-        this.uuid = UUID.fromString(uuidPlayer);
+        this.uuid = uuidPlayer;
         initDefaults();
     }
 
-    public PlayerSettings(String name, UUID uuid) {
-        this.name = name;
-        this.uuid = uuid;
-        this.uuidPlayer = uuid.toString();
-        initDefaults();
-    }
+//    public PlayerSettings(String name, UUID uuid) {
+//        this.name = name;
+//        this.uuidPlayer = uuid.toString();
+//        this.uuid = uuid;
+//        initDefaults();
+//    }
 
     private void initDefaults() {
         this.isDisablePlaceBlock = false;
@@ -194,11 +258,13 @@ public class PlayerSettings {
         this.isDisablePlantingSeed = false;
         this.isDisableTradingVillager = false;
         this.isDisableTradingWanderingTrader = false;
+        this.isDisableLoadingMod = false;
 
         this.blockSettings = new ArrayList<>();
         this.itemSettings = new ArrayList<>();
         this.seedSettings = new ArrayList<>();
         this.villagerSettings = new ArrayList<>();
+        this.modSettings = new ArrayList<>();
 
         this.disableDropItemListType = ListType.BLACK_LIST;
         this.disablePickupItemListType = ListType.BLACK_LIST;
@@ -206,6 +272,17 @@ public class PlayerSettings {
         this.disableBreakBlockListType = ListType.BLACK_LIST;
         this.disablePlantingSeedListType = ListType.BLACK_LIST;
         this.disableTradingVillagerListType = ListType.BLACK_LIST;
+        this.disableModListType = ListType.BLACK_LIST;
+
+
+
+
+        this.isDisableBreedAnimal = false;
+        this.isDisableSpawnAnimal = false;
+        this.animalSettings = new ArrayList<>();
+        this.disableBreedAnimalListType = ListType.BLACK_LIST;
+        this.disableSpawnAnimalListType = ListType.BLACK_LIST;
+
     }
 
     // ==================== Геттеры и сеттеры ====================
@@ -216,25 +293,10 @@ public class PlayerSettings {
     public String getUuidPlayer() { return uuidPlayer; }
     public void setUuidPlayer(String uuidPlayer) {
         this.uuidPlayer = uuidPlayer;
-        this.uuid = UUID.fromString(uuidPlayer);
+        this.uuid = uuidPlayer;
     }
 
-    public void setUuidPlayer(UUID uuid) {
-        this.uuid = uuid;
-        this.uuidPlayer = uuid.toString();
-    }
 
-    public UUID getUuid() {
-        if (uuid == null && uuidPlayer != null) {
-            uuid = UUID.fromString(uuidPlayer);
-        }
-        return uuid;
-    }
-
-    public void setUuid(UUID uuid) {
-        this.uuid = uuid;
-        this.uuidPlayer = uuid.toString();
-    }
 
     public List<BlockSetting> getBlockSettings() { return blockSettings; }
     public List<ItemSetting> getItemSettings() { return itemSettings; }
@@ -244,49 +306,40 @@ public class PlayerSettings {
     // ==================== Глобальные настройки блоков ====================
 
     public boolean isDisablePlaceBlock() { return isDisablePlaceBlock; }
-    public void setDisablePlaceBlock(boolean disablePlaceBlock) { isDisablePlaceBlock = disablePlaceBlock; }
     public void toggleDisablePlaceBlock() { isDisablePlaceBlock = !isDisablePlaceBlock; }
 
     public boolean isDisableBreakBlock() { return isDisableBreakBlock; }
-    public void setDisableBreakBlock(boolean disableBreakBlock) { isDisableBreakBlock = disableBreakBlock; }
     public void toggleDisableBreakBlock() { isDisableBreakBlock = !isDisableBreakBlock; }
 
     // ==================== Глобальные настройки предметов ====================
 
     public boolean isDisableDropItem() { return isDisableDropItem; }
-    public void setDisableDropItem(boolean disableDropItem) { isDisableDropItem = disableDropItem; }
     public void toggleDisableItemDrop() { isDisableDropItem = !isDisableDropItem; }
 
     public boolean isDisablePickupItem() { return isDisablePickupItem; }
-    public void setDisablePickupItem(boolean disablePickupItem) { isDisablePickupItem = disablePickupItem; }
     public void toggleDisableItemPickup() { isDisablePickupItem = !isDisablePickupItem; }
 
     // ==================== Глобальные настройки посадки семян ====================
 
     public boolean isDisablePlantingSeed() { return isDisablePlantingSeed; }
-    public void setDisablePlantingSeed(boolean disablePlantingSeed) { isDisablePlantingSeed = disablePlantingSeed; }
     public void toggleDisablePlantingSeed() { isDisablePlantingSeed = !isDisablePlantingSeed; }
 
     // ==================== Глобальные настройки торговли ====================
 
     public boolean isDisableTradingVillager() { return isDisableTradingVillager; }
-    public void setDisableTradingVillager(boolean disableTradingVillager) { isDisableTradingVillager = disableTradingVillager; }
     public void toggleDisableTradingVillager() { isDisableTradingVillager = !isDisableTradingVillager; }
 
     public boolean isDisableTradingWanderingTrader() { return isDisableTradingWanderingTrader; }
-    public void setDisableTradingWanderingTrader(boolean disableTradingWanderingTrader) { isDisableTradingWanderingTrader = disableTradingWanderingTrader; }
     public void toggleDisableTradingWanderingTrader() { isDisableTradingWanderingTrader = !isDisableTradingWanderingTrader; }
 
     // ==================== ListType для блоков ====================
 
     public ListType getDisablePlaceBlockListType() { return disablePlaceBlockListType; }
-    public void setDisablePlaceBlockListType(ListType listType) { this.disablePlaceBlockListType = listType; }
     public void toggleDisablePlaceBlockListType() {
         disablePlaceBlockListType = (disablePlaceBlockListType == ListType.BLACK_LIST) ? ListType.WHITE_LIST : ListType.BLACK_LIST;
     }
 
     public ListType getDisableBreakBlockListType() { return disableBreakBlockListType; }
-    public void setDisableBreakBlockListType(ListType listType) { this.disableBreakBlockListType = listType; }
     public void toggleDisableBreakBlockListType() {
         disableBreakBlockListType = (disableBreakBlockListType == ListType.BLACK_LIST) ? ListType.WHITE_LIST : ListType.BLACK_LIST;
     }
@@ -294,13 +347,11 @@ public class PlayerSettings {
     // ==================== ListType для предметов ====================
 
     public ListType getDisableDropItemListType() { return disableDropItemListType; }
-    public void setDisableDropItemListType(ListType listType) { this.disableDropItemListType = listType; }
     public void toggleDisableDropItemListType() {
         disableDropItemListType = (disableDropItemListType == ListType.BLACK_LIST) ? ListType.WHITE_LIST : ListType.BLACK_LIST;
     }
 
     public ListType getDisablePickupItemListType() { return disablePickupItemListType; }
-    public void setDisablePickupItemListType(ListType listType) { this.disablePickupItemListType = listType; }
     public void toggleDisablePickupItemListType() {
         disablePickupItemListType = (disablePickupItemListType == ListType.BLACK_LIST) ? ListType.WHITE_LIST : ListType.BLACK_LIST;
     }
@@ -308,7 +359,6 @@ public class PlayerSettings {
     // ==================== ListType для посадки семян ====================
 
     public ListType getDisablePlantingSeedListType() { return disablePlantingSeedListType; }
-    public void setDisablePlantingSeedListType(ListType listType) { this.disablePlantingSeedListType = listType; }
     public void toggleDisablePlantingSeedListType() {
         disablePlantingSeedListType = (disablePlantingSeedListType == ListType.BLACK_LIST) ? ListType.WHITE_LIST : ListType.BLACK_LIST;
     }
@@ -316,7 +366,6 @@ public class PlayerSettings {
     // ==================== ListType для торговли ====================
 
     public ListType getDisableTradingVillagerListType() { return disableTradingVillagerListType; }
-    public void setDisableTradingVillagerListType(ListType listType) { this.disableTradingVillagerListType = listType; }
     public void toggleDisableTradingVillagerListType() {
         disableTradingVillagerListType = (disableTradingVillagerListType == ListType.BLACK_LIST) ? ListType.WHITE_LIST : ListType.BLACK_LIST;
     }
@@ -605,48 +654,109 @@ public class PlayerSettings {
                 .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
     }
 
-    // ==================== Методы для совместимости со старым кодом ====================
 
-    // Deprecated методы для обратной совместимости
-    @Deprecated
-    public boolean getDisablePlaceBlock() { return isDisablePlaceBlock(); }
+    // ==================== Глобальные настройки животных ====================
 
-    @Deprecated
-    public boolean getDisableBreakBlock() { return isDisableBreakBlock(); }
+    public boolean isDisableBreedAnimal() { return isDisableBreedAnimal; }
+    public void setDisableBreedAnimal(boolean disable) { isDisableBreedAnimal = disable; }
+    public void toggleDisableBreedAnimal() { isDisableBreedAnimal = !isDisableBreedAnimal; }
 
-    @Deprecated
-    public boolean getDisableDropItem() { return isDisableDropItem(); }
+    public boolean isDisableSpawnAnimal() { return isDisableSpawnAnimal; }
+    public void setDisableSpawnAnimal(boolean disable) { isDisableSpawnAnimal = disable; }
+    public void toggleDisableSpawnAnimal() { isDisableSpawnAnimal = !isDisableSpawnAnimal; }
 
-    @Deprecated
-    public boolean getDisablePickupItem() { return isDisablePickupItem(); }
+    public ListType getDisableBreedAnimalListType() { return disableBreedAnimalListType; }
+    public void setDisableBreedAnimalListType(ListType type) { this.disableBreedAnimalListType = type; }
+    public void toggleDisableBreedAnimalListType() {
+        disableBreedAnimalListType = (disableBreedAnimalListType == ListType.BLACK_LIST) ? ListType.WHITE_LIST : ListType.BLACK_LIST;
+    }
 
-    @Deprecated
-    public boolean getDisablePlantingSeed() { return isDisablePlantingSeed(); }
+    public ListType getDisableSpawnAnimalListType() { return disableSpawnAnimalListType; }
+    public void setDisableSpawnAnimalListType(ListType type) { this.disableSpawnAnimalListType = type; }
+    public void toggleDisableSpawnAnimalListType() {
+        disableSpawnAnimalListType = (disableSpawnAnimalListType == ListType.BLACK_LIST) ? ListType.WHITE_LIST : ListType.BLACK_LIST;
+    }
 
-    @Deprecated
-    public boolean getDisableTradingVillager() { return isDisableTradingVillager(); }
+    public List<AnimalSetting> getAnimalSettings() {
+        if (animalSettings == null) animalSettings = new ArrayList<>();
+        return animalSettings;
+    }
 
-    @Deprecated
-    public boolean getDisableTradingWanderingTrader() { return isDisableTradingWanderingTrader(); }
+// ==================== Работа с животными ====================
 
-    @Deprecated
-    public List<String> getAllBlockID() { return getAllBlockIds(); }
+    private AnimalSetting getOrCreateAnimalSetting(String id) {
+        for (AnimalSetting setting : getAnimalSettings()) {
+            if (setting.getId().equals(id)) {
+                return setting;
+            }
+        }
+        AnimalSetting newSetting = new AnimalSetting(id);
+        getAnimalSettings().add(newSetting);
+        return newSetting;
+    }
 
-    @Deprecated
-    public List<String> getAllItemID() { return getAllItemIds(); }
+    public void addAnimal(String id) {
+        if (!isAnimalExists(id)) {
+            getAnimalSettings().add(new AnimalSetting(id));
+        }
+    }
 
-    @Deprecated
-    public List<String> getAllSeedID() { return getAllSeedIds(); }
+    public void addAnimal(EntityType<?> entityType) {
+        addAnimal(BuiltInRegistries.ENTITY_TYPE.getKey(entityType).toString());
+    }
 
-    @Deprecated
-    public boolean isPlantSeedExists(String seedId) { return isSeedExists(seedId); }
+    public boolean isAnimalExists(String id) {
+        return getAnimalSettings().stream().anyMatch(setting -> setting.getId().equals(id));
+    }
 
-    @Deprecated
-    public void clearPlantSeedList() { clearSeedList(); }
+    public void removeAnimal(String id) {
+        getAnimalSettings().removeIf(setting -> setting.getId().equals(id));
+    }
 
-    @Deprecated
-    public boolean canPlanSeed(String id) { return canPlantSeed(id); }
+    public void toggleAnimalBreed(String id) {
+        getOrCreateAnimalSetting(id).toggleBreed();
+    }
 
+    public void toggleAnimalSpawn(String id) {
+        getOrCreateAnimalSetting(id).toggleSpawn();
+    }
+
+    public boolean canBreedAnimal(String id) {
+        return getAnimalSettings().stream()
+                .filter(setting -> setting.getId().equals(id))
+                .findFirst()
+                .map(AnimalSetting::canBreed)
+                .orElse(false);
+    }
+
+    public boolean canSpawnAnimal(String id) {
+        return getAnimalSettings().stream()
+                .filter(setting -> setting.getId().equals(id))
+                .findFirst()
+                .map(AnimalSetting::canSpawn)
+                .orElse(false);
+    }
+
+    public List<String> getAllAnimalIds() {
+        return getAnimalSettings().stream()
+                .map(AnimalSetting::getId)
+                .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+    }
+
+    private static String getAnimalDisplayName(String animalId) {
+        try {
+            ResourceLocation id = ResourceLocation.parse(animalId);
+            EntityType<?> entityType = BuiltInRegistries.ENTITY_TYPE.get(id);
+            if (entityType != null) {
+                Component translated = Component.translatable(entityType.getDescriptionId());
+                return translated.getString();
+            }
+        } catch (Exception e) {
+            // fallback
+        }
+        String path = animalId.split(":")[1];
+        return path.substring(0, 1).toUpperCase() + path.substring(1).replace("_", " ");
+    }
 
     // ==================== Проверка наличия конкретных настроек ====================
 
@@ -664,5 +774,9 @@ public class PlayerSettings {
 
     public boolean hasVillagerSetting(String professionId) {
         return villagerSettings.stream().anyMatch(setting -> setting.getId().equals(professionId));
+    }
+
+    public boolean hasAnimalSetting(String animalAd) {
+        return animalSettings.stream().anyMatch(setting -> setting.getId().equals(animalAd));
     }
 }

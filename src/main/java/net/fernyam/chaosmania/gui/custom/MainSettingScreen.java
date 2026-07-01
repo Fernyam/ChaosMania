@@ -1,15 +1,13 @@
 package net.fernyam.chaosmania.gui.custom;
 
 import net.fernyam.chaosmania.ChaosManiaMod;
-import net.fernyam.chaosmania.data.JSONSettingManager;
-import net.fernyam.chaosmania.data.PlayerSettings;
+import net.fernyam.chaosmania.data.settings.*;
+import net.fernyam.chaosmania.data.settings.custom.*;
 import net.fernyam.chaosmania.gui.util.SearchUtils;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.ObjectSelectionList;
-import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -25,7 +23,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static net.fernyam.chaosmania.ChaosManiaMod.MOD_ID;
-import static net.fernyam.chaosmania.data.JSONSettingManager.*;
+import static net.fernyam.chaosmania.data.settings.SettingsManager.*;
 
 enum ButtonSelect {
     BlockSetting,
@@ -36,27 +34,23 @@ enum ButtonSelect {
 
 // Класс для хранения информации об игроке
 class PlayerInfoData {
-    private final UUID uuid;
+    private final String uuid;
     private final String name;
     private final boolean isAllPlayers;
 
     public static final PlayerInfoData ALL_PLAYERS = new PlayerInfoData(ALL_PLAYER_UUID, "§6§l[ВСЕМ]", true);
 
-    public PlayerInfoData(UUID uuid, String name) {
+    public PlayerInfoData(String uuid, String name) {
         this(uuid, name, false);
     }
 
-    public PlayerInfoData(String uuid, String name) {
-        this(UUID.fromString(uuid), name, false);
-    }
-
-    private PlayerInfoData(UUID uuid, String name, boolean isAllPlayers) {
+    private PlayerInfoData(String uuid, String name, boolean isAllPlayers) {
         this.uuid = uuid;
         this.name = name;
         this.isAllPlayers = isAllPlayers;
     }
 
-    public UUID getUuid() { return uuid; }
+    public String getUuid() { return uuid; }
     public String getName() { return name; }
     public boolean isAllPlayers() { return isAllPlayers; }
 
@@ -87,52 +81,37 @@ public class MainSettingScreen extends Screen {
     private static final int backgroundWidth = 216;
     private static final int backgroundHeight = 230;
 
+    // Кешированные списки
+    private List<BlockEntry> allBlocksMasterList = new ArrayList<>();
+    private List<ItemEntry> allItemsMasterList = new ArrayList<>();
+    private List<ItemEntry> allSeedsMasterList = new ArrayList<>();
+    private List<ProfessionVillagerEntry> allVillagersMasterList = new ArrayList<>();
+
+    // Фильтры поиска
+    private String currentBlockSearchFilter = "";
+    private String currentItemSearchFilter = "";
+    private String currentSeedsSearchFilter = "";
+    private String currentVillagersSearchFilter = "";
+
+    // UI компоненты
     private ScrollingPlayerList playerListScroll;
     private ScrollingBlockList blockListScroll;
     private ScrollingItemList itemListScroll;
     private ScrollingSeedList seedListScroll;
     private ScrollingVillagerList villagerScroll;
-
     private EditBox searchAllSelectObj;
 
     private Button BlockButton;
     private Button ItemButton;
     private Button SpecialSettingButton;
-
-    private boolean IsActiveSpecialSettingButton;
     private Button SpecialPlantingSeedSettingButton;
     private Button SpecialVillagerTradingSettingButton;
-
     private Button LogButton;
 
-    // Блоки
-    private List<BlockEntry> allBlocksMasterList;
-    private String currentBlockSearchFilter = "";
-
-    // Предметы
-    private List<ItemEntry> allItemsMasterList;
-    private String currentItemSearchFilter = "";
-
-    // Семена
-    private List<ItemEntry> allSeedsMasterList;
-    private String currentSeedsSearchFilter = "";
-
-    // Жители
-    private List<ProfessionVillagerEntry> allVillagersMasterList;
-    private String currentVillagersSearchFilter = "";
+    private boolean IsActiveSpecialSettingButton;
 
     public MainSettingScreen() {
         super(Component.empty());
-        selectedPlayer = null;
-        selectButton = null;
-        allBlocksMasterList = new ArrayList<>();
-        allItemsMasterList = new ArrayList<>();
-        allSeedsMasterList = new ArrayList<>();
-        allVillagersMasterList = new ArrayList<>();
-        currentBlockSearchFilter = "";
-        currentItemSearchFilter = "";
-        currentSeedsSearchFilter = "";
-        currentVillagersSearchFilter = "";
     }
 
     // ==================== Методы для блоков ====================
@@ -161,7 +140,7 @@ public class MainSettingScreen extends Screen {
 
     private void sortBlocksWithActiveFirst(List<BlockEntry> blocks) {
         if (selectedPlayer == null) return;
-        var settings = JSONSettingManager.getSettings(selectedPlayer.getUuid());
+        var settings = getBlockSettings(selectedPlayer.getUuid());
         if (settings == null) return;
 
         SearchUtils.sortWithActiveFirst(
@@ -172,20 +151,17 @@ public class MainSettingScreen extends Screen {
     }
 
     private void loadSelectBlockList() {
-        Set<BlockEntry> allBlocksSet = new HashSet<>();
         if (selectedPlayer == null) return;
 
-        var settings = JSONSettingManager.getSettings(selectedPlayer.getUuid());
+        var settings = getBlockSettings(selectedPlayer.getUuid());
         if (settings == null) return;
 
-        var allID = settings.getAllBlockID();
-        for (String id : allID) {
-            ResourceLocation location = ResourceLocation.tryParse(id);
+        Set<BlockEntry> allBlocksSet = new HashSet<>();
+        for (var entry : settings.getBlocks()) {
+            ResourceLocation location = ResourceLocation.tryParse(entry.getIdBlock());
             if (location != null && BuiltInRegistries.BLOCK.containsKey(location)) {
-                allBlocksSet.add(new BlockEntry(
-                        BuiltInRegistries.BLOCK.get(location),
-                        new ItemStack(BuiltInRegistries.BLOCK.get(location).asItem())
-                ));
+                var block = BuiltInRegistries.BLOCK.get(location);
+                allBlocksSet.add(new BlockEntry(block, new ItemStack(block.asItem())));
             }
         }
 
@@ -228,7 +204,8 @@ public class MainSettingScreen extends Screen {
 
     private void sortItemsWithActiveFirst(List<ItemEntry> items) {
         if (selectedPlayer == null) return;
-        var settings = JSONSettingManager.getSettings(selectedPlayer.getUuid());
+
+        var settings = getItemSettings(selectedPlayer.getUuid());
         if (settings == null) return;
 
         SearchUtils.sortWithActiveFirst(
@@ -239,20 +216,17 @@ public class MainSettingScreen extends Screen {
     }
 
     private void loadSelectItemList() {
-        Set<ItemEntry> allItemsSet = new HashSet<>();
         if (selectedPlayer == null) return;
 
-        var settings = JSONSettingManager.getSettings(selectedPlayer.getUuid());
+        var settings = getItemSettings(selectedPlayer.getUuid());
         if (settings == null) return;
 
-        var allID = settings.getAllItemID();
-        for (String id : allID) {
-            ResourceLocation location = ResourceLocation.tryParse(id);
+        Set<ItemEntry> allItemsSet = new HashSet<>();
+        for (var entry : settings.getItems()) {
+            ResourceLocation location = ResourceLocation.tryParse(entry.getIdItem());
             if (location != null && BuiltInRegistries.ITEM.containsKey(location)) {
-                allItemsSet.add(new ItemEntry(
-                        BuiltInRegistries.ITEM.get(location),
-                        new ItemStack(BuiltInRegistries.ITEM.get(location))
-                ));
+                var item = BuiltInRegistries.ITEM.get(location);
+                allItemsSet.add(new ItemEntry(item, new ItemStack(item)));
             }
         }
 
@@ -295,7 +269,7 @@ public class MainSettingScreen extends Screen {
 
     private void sortSeedsWithActiveFirst(List<ItemEntry> items) {
         if (selectedPlayer == null) return;
-        var settings = JSONSettingManager.getSettings(selectedPlayer.getUuid());
+        var settings = getSeedSettings(selectedPlayer.getUuid());
         if (settings == null) return;
 
         SearchUtils.sortWithActiveFirst(
@@ -306,20 +280,17 @@ public class MainSettingScreen extends Screen {
     }
 
     private void loadSelectSeedsList() {
-        Set<ItemEntry> allSeedsSet = new HashSet<>();
         if (selectedPlayer == null) return;
 
-        var settings = JSONSettingManager.getSettings(selectedPlayer.getUuid());
+        var settings = getSeedSettings(selectedPlayer.getUuid());
         if (settings == null) return;
 
-        var allID = settings.getAllSeedID();
-        for (String id : allID) {
-            ResourceLocation location = ResourceLocation.tryParse(id);
+        Set<ItemEntry> allSeedsSet = new HashSet<>();
+        for (var entry : settings.getSeeds()) {
+            ResourceLocation location = ResourceLocation.tryParse(entry.getIdSeed());
             if (location != null && BuiltInRegistries.ITEM.containsKey(location)) {
-                allSeedsSet.add(new ItemEntry(
-                        BuiltInRegistries.ITEM.get(location),
-                        new ItemStack(BuiltInRegistries.ITEM.get(location))
-                ));
+                var item = BuiltInRegistries.ITEM.get(location);
+                allSeedsSet.add(new ItemEntry(item, new ItemStack(item)));
             }
         }
 
@@ -362,26 +333,25 @@ public class MainSettingScreen extends Screen {
 
     private void sortVillagersWithActiveFirst(List<ProfessionVillagerEntry> professions) {
         if (selectedPlayer == null) return;
-        var settings = JSONSettingManager.getSettings(selectedPlayer.getUuid());
+        var settings = getVillagerSettings(selectedPlayer.getUuid());
         if (settings == null) return;
 
         SearchUtils.sortWithActiveFirst(
                 professions,
-                entry -> settings.isVillagerProfessionExists(entry.getId()),
+                entry -> settings.isProfessionExists(entry.getId()),
                 ProfessionVillagerEntry::getName
         );
     }
 
     private void loadSelectVillagerList() {
-        Set<ProfessionVillagerEntry> allVillagersSet = new HashSet<>();
         if (selectedPlayer == null) return;
 
-        var settings = JSONSettingManager.getSettings(selectedPlayer.getUuid());
+        var settings = getVillagerSettings(selectedPlayer.getUuid());
         if (settings == null) return;
 
-        var allID = settings.getAllVillagerProfessionIds();
-        for (String id : allID) {
-            ResourceLocation location = ResourceLocation.tryParse(id);
+        Set<ProfessionVillagerEntry> allVillagersSet = new HashSet<>();
+        for (var entry : settings.getProfessions()) {
+            ResourceLocation location = ResourceLocation.tryParse(entry.getIdProfession());
             if (location != null && BuiltInRegistries.VILLAGER_PROFESSION.containsKey(location)) {
                 allVillagersSet.add(new ProfessionVillagerEntry(
                         BuiltInRegistries.VILLAGER_PROFESSION.get(location)
@@ -405,25 +375,45 @@ public class MainSettingScreen extends Screen {
     // ==================== Общие методы ====================
 
     private List<PlayerInfoData> getOnlinePlayers() {
+        // Сначала синхронизируем игроков между всеми настройками
+        synchronizePlayers();
+
         Set<PlayerInfoData> playersSet = new HashSet<>();
 
-        for (PlayerSettings playerSett : JSONSettingManager.getAllSettings()) {
-
-            if (Objects.equals(playerSett.getUuidPlayer(), PlayerInfoData.ALL_PLAYERS.getUuid().toString())) {
+        // Получаем всех игроков из настроек
+        for (String uuid : getAllPlayerUuids()) {
+            if (uuid.equals(ALL_PLAYER_UUID)) {
                 playersSet.add(PlayerInfoData.ALL_PLAYERS);
                 continue;
             }
-            playersSet.add(new PlayerInfoData(playerSett.getUuidPlayer(), playerSett.getName()));
+
+            String name = getPlayerName(uuid);
+            playersSet.add(new PlayerInfoData(uuid, name));
         }
 
+        // Добавляем онлайн игроков
         if (minecraft != null && minecraft.getConnection() != null) {
             for (PlayerInfo playerInfo : minecraft.getConnection().getListedOnlinePlayers()) {
-                playersSet.add(new PlayerInfoData(playerInfo.getProfile().getId(), playerInfo.getProfile().getName()));
+                String uuid = playerInfo.getProfile().getId().toString();
+                String name = playerInfo.getProfile().getName();
+                playersSet.add(new PlayerInfoData(uuid, name));
+
+                // Если онлайн игрок есть, но его нет в настройках - добавляем
+                if (!getAllPlayerUuids().contains(uuid)) {
+                    SettingsManager.addNewPlayer(name, uuid);
+                }
             }
         }
 
+        // Если никого нет - добавляем текущего игрока
         if (playersSet.isEmpty() && minecraft != null && minecraft.player != null) {
-            playersSet.add(new PlayerInfoData(minecraft.player.getUUID(), minecraft.player.getName().getString()));
+            String uuid = minecraft.player.getUUID().toString();
+            String name = minecraft.player.getName().getString();
+            playersSet.add(new PlayerInfoData(uuid, name));
+
+            if (!getAllPlayerUuids().contains(uuid)) {
+                SettingsManager.addNewPlayer(name, uuid);
+            }
         }
 
         List<PlayerInfoData> sortedPlayers = new ArrayList<>(playersSet);
@@ -436,6 +426,127 @@ public class MainSettingScreen extends Screen {
         return sortedPlayers;
     }
 
+    private void synchronizePlayers() {
+        // Получаем все UUID из всех типов настроек
+        Set<String> blockPlayers = new HashSet<>(SettingsManager.getAllBlockPlayers());
+        Set<String> itemPlayers = new HashSet<>(SettingsManager.getAllItemPlayers());
+        Set<String> seedPlayers = new HashSet<>(SettingsManager.getAllSeedPlayers());
+        Set<String> villagerPlayers = new HashSet<>(SettingsManager.getAllVillagerPlayers());
+        Set<String> animalPlayers = new HashSet<>(SettingsManager.getAllAnimalPlayers());
+        Set<String> modPlayers = new HashSet<>(SettingsManager.getAllModPlayers());
+
+        // Объединяем все UUID в один набор
+        Set<String> allUuids = new HashSet<>();
+        allUuids.addAll(blockPlayers);
+        allUuids.addAll(itemPlayers);
+        allUuids.addAll(seedPlayers);
+        allUuids.addAll(villagerPlayers);
+        allUuids.addAll(animalPlayers);
+        allUuids.addAll(modPlayers);
+
+        // Убеждаемся, что [ВСЕМ] есть везде
+        allUuids.add(ALL_PLAYER_UUID);
+
+        // Проверяем каждый UUID во всех типах настроек
+        for (String uuid : allUuids) {
+            // Пропускаем [ВСЕМ] - он уже есть
+            if (uuid.equals(ALL_PLAYER_UUID)) continue;
+
+            // Получаем имя из любого существующего типа
+            String name = getPlayerName(uuid);
+
+            // Проверяем блоки
+            if (!blockPlayers.contains(uuid)) {
+                BlockSettings blockSettings = new BlockSettings(uuid, name);
+                SettingsManager.addBlockPlayer(uuid, blockSettings);
+                ChaosManiaMod.LOGGER.debug("Added missing player {} to block settings", uuid);
+            }
+
+            // Проверяем предметы
+            if (!itemPlayers.contains(uuid)) {
+                ItemSettings itemSettings = new ItemSettings(uuid, name);
+                SettingsManager.addItemPlayer(uuid, itemSettings);
+                ChaosManiaMod.LOGGER.debug("Added missing player {} to item settings", uuid);
+            }
+
+            // Проверяем семена
+            if (!seedPlayers.contains(uuid)) {
+                SeedSettings seedSettings = new SeedSettings(uuid, name);
+                SettingsManager.addSeedPlayer(uuid, seedSettings);
+                ChaosManiaMod.LOGGER.debug("Added missing player {} to seed settings", uuid);
+            }
+
+            // Проверяем жителей
+            if (!villagerPlayers.contains(uuid)) {
+                VillagerSettings villagerSettings = new VillagerSettings(uuid, name);
+                SettingsManager.addVillagerPlayer(uuid, villagerSettings);
+                ChaosManiaMod.LOGGER.debug("Added missing player {} to villager settings", uuid);
+            }
+
+            // Проверяем животных
+            if (!animalPlayers.contains(uuid)) {
+                AnimalSettings animalSettings = new AnimalSettings(uuid, name);
+                SettingsManager.addAnimalPlayer(uuid, animalSettings);
+                ChaosManiaMod.LOGGER.debug("Added missing player {} to animal settings", uuid);
+            }
+
+            // Проверяем моды
+            if (!modPlayers.contains(uuid)) {
+                ModSettings modSettings = new ModSettings(uuid, name);
+                SettingsManager.addModPlayer(uuid, modSettings);
+                ChaosManiaMod.LOGGER.debug("Added missing player {} to mod settings", uuid);
+            }
+        }
+    }
+
+    private Set<String> getAllPlayerUuids() {
+        Set<String> uuids = new HashSet<>();
+        uuids.addAll(SettingsManager.getAllBlockPlayers());
+        uuids.addAll(SettingsManager.getAllItemPlayers());
+        uuids.addAll(SettingsManager.getAllSeedPlayers());
+        uuids.addAll(SettingsManager.getAllVillagerPlayers());
+        return uuids;
+    }
+
+    private String getPlayerName(String uuid) {
+        // Пробуем получить имя из блоков
+        var blockSettings = SettingsManager.getBlockSettings(uuid);
+        if (blockSettings != null && blockSettings.getNamePlayer() != null) {
+            return blockSettings.getNamePlayer();
+        }
+
+        // Пробуем получить имя из предметов
+        var itemSettings = SettingsManager.getItemSettings(uuid);
+        if (itemSettings != null && itemSettings.getNamePlayer() != null) {
+            return itemSettings.getNamePlayer();
+        }
+
+        // Пробуем получить имя из семян
+        var seedSettings = SettingsManager.getSeedSettings(uuid);
+        if (seedSettings != null && seedSettings.getNamePlayer() != null) {
+            return seedSettings.getNamePlayer();
+        }
+
+        // Пробуем получить имя из жителей
+        var villagerSettings = SettingsManager.getVillagerSettings(uuid);
+        if (villagerSettings != null && villagerSettings.getNamePlayer() != null) {
+            return villagerSettings.getNamePlayer();
+        }
+
+        // Если нигде нет - возвращаем UUID
+        return uuid;
+    }
+
+    public static PlayerInfoData getSelectedPlayer() {
+        return selectedPlayer;
+    }
+
+    public static void setSelectedPlayer(PlayerInfoData player) {
+        selectedPlayer = player;
+    }
+
+    // ==================== Создание UI ====================
+
     @Override
     protected void init() {
         this.clearWidgets();
@@ -446,11 +557,27 @@ public class MainSettingScreen extends Screen {
         int startX = (getWidth() - totalWidth) / 2;
         int startY = 5;
 
+        createMainButtons(startX, startY, buttonWidth);
+        createSpecialButtons(startX, startY, buttonWidth);
+        createScrolls();
+        createSearchBox();
+
+        if (selectButton != null) {
+            setupSelectedMode(buttonWidth);
+        }
+
+        if (IsActiveSpecialSettingButton) {
+            addSpecialButtons();
+        }
+
+        updateButtonStates();
+    }
+
+    private void createMainButtons(int startX, int startY, int buttonWidth) {
         BlockButton = Button.builder(
                 Component.literal("Настройка блоков"),
                 button -> {
                     selectButton = ButtonSelect.BlockSetting;
-                    updateButtonStates();
                     IsActiveSpecialSettingButton = false;
                     init();
                 }
@@ -460,7 +587,6 @@ public class MainSettingScreen extends Screen {
                 Component.literal("Настройка предметов"),
                 button -> {
                     selectButton = ButtonSelect.ItemSetting;
-                    updateButtonStates();
                     IsActiveSpecialSettingButton = false;
                     init();
                 }
@@ -470,32 +596,9 @@ public class MainSettingScreen extends Screen {
                 Component.literal(IsActiveSpecialSettingButton ? "Спец возможности ▼" : "Спец возможности ▶"),
                 button -> {
                     IsActiveSpecialSettingButton = !IsActiveSpecialSettingButton;
-                    updateButtonStates();
                     init();
                 }
         ).bounds(startX + (buttonWidth + BUTTON_SPACING) * 2, startY, buttonWidth, BUTTON_HEIGHT).build();
-
-        if (IsActiveSpecialSettingButton) {
-            SpecialPlantingSeedSettingButton = Button.builder(
-                    Component.literal("Посадка семян"),
-                    button -> {
-                        selectButton = ButtonSelect.PlantingSeed;
-                        updateButtonStates();
-                        IsActiveSpecialSettingButton = false;
-                        init();
-                    }
-            ).bounds(startX + (buttonWidth + BUTTON_SPACING) * 2, startY + BUTTON_HEIGHT + 5, buttonWidth, BUTTON_HEIGHT).build();
-
-            SpecialVillagerTradingSettingButton = Button.builder(
-                    Component.literal("Торговля с жителями"),
-                    button -> {
-                        selectButton = ButtonSelect.TradingVillager;
-                        updateButtonStates();
-                        IsActiveSpecialSettingButton = false;
-                        init();
-                    }
-            ).bounds(startX + (buttonWidth + BUTTON_SPACING) * 2, startY + (BUTTON_HEIGHT + 5) * 2, buttonWidth, BUTTON_HEIGHT).build();
-        }
 
         LogButton = Button.builder(
                 Component.literal("L"),
@@ -506,186 +609,217 @@ public class MainSettingScreen extends Screen {
         this.addRenderableWidget(ItemButton);
         this.addRenderableWidget(SpecialSettingButton);
         this.addRenderableWidget(LogButton);
+    }
 
-        this.playerListScroll = new ScrollingPlayerList(getWidth() / 2 - 108 - 98, getHeight() / 2 - 94, 100, getHeight() / 2 + 20, this);
-
-        this.blockListScroll = new ScrollingBlockList(getWidth() / 2 - 102, getHeight() / 2 - 71, this.backgroundWidth - 15, this.backgroundHeight - 40, this);
-        this.itemListScroll = new ScrollingItemList(getWidth() / 2 - 102, getHeight() / 2 - 71, this.backgroundWidth - 15, this.backgroundHeight - 40, this);
-        this.seedListScroll = new ScrollingSeedList(getWidth() / 2 - 102, getHeight() / 2 - 71, this.backgroundWidth - 15, this.backgroundHeight - 40, this);
-        this.villagerScroll = new ScrollingVillagerList(getWidth() / 2 - 102, getHeight() / 2 - 71, this.backgroundWidth - 15, this.backgroundHeight - 40, this);
-
-        this.searchAllSelectObj = new EditBox(getFontRender(), getWidth() / 2 - 100, getHeight() / 2 - 90, this.backgroundWidth - 19, 17, Component.literal("Поиск... (:id | @modid)"));
-
-        if (selectButton != null) {
-            if (selectedPlayer != null) {
-                if (selectButton == ButtonSelect.BlockSetting) {
-                    loadSelectBlockList();
-
-                    this.searchAllSelectObj.setResponder(searchText -> {
-                        currentBlockSearchFilter = searchText;
-                        searchAllSelectObj.setTextColor(SearchUtils.getSearchTextColor(searchText));
-                        updateBlockListWithFilter();
-                    });
-
-                    addRenderableWidget(Button.builder(
-                            Component.literal("Add Block"),
-                            button -> {
-                                this.minecraft.setScreen(new AllBlockScreen(selectedPlayer, this));
-                            }
-                    ).bounds(getWidth() / 2 + 105, getHeight() / 2 - 50, buttonWidth - 37, BUTTON_HEIGHT + 8).build());
-
-                    addRenderableWidget(Button.builder(
-                            Component.literal("Запрет на установку: " + (JSONSettingManager.getSettings(selectedPlayer.getUuid()).getDisablePlaceBlock() ? "§aВКЛ" : "§cВЫКЛ")),
-                            button -> {
-                                boolean current = JSONSettingManager.getSettings(selectedPlayer.getUuid()).getDisablePlaceBlock();
-                                JSONSettingManager.toggleGlobalBlockPlace(selectedPlayer.getUuid());
-                                button.setMessage(Component.literal("Запрет на установку: " + (!current ? "§aВКЛ" : "§cВЫКЛ")));
-                            }
-                    ).bounds(getWidth() / 2 + 105, getHeight() / 2 - 18, buttonWidth - 37, BUTTON_HEIGHT + 3).build());
-
-                    addRenderableWidget(Button.builder(
-                            Component.literal("Запрет на ломание: " + (JSONSettingManager.getSettings(selectedPlayer.getUuid()).getDisableBreakBlock() ? "§aВКЛ" : "§cВЫКЛ")),
-                            button -> {
-                                boolean current = JSONSettingManager.getSettings(selectedPlayer.getUuid()).getDisableBreakBlock();
-                                JSONSettingManager.toggleGlobalBlockBreak(selectedPlayer.getUuid());
-                                button.setMessage(Component.literal("Запрет на ломание: " + (!current ? "§aВКЛ" : "§cВЫКЛ")));
-                            }
-                    ).bounds(getWidth() / 2 + 105, getHeight() / 2 + 12, buttonWidth - 37, BUTTON_HEIGHT + 3).build());
-
-                    addRenderableWidget(Button.builder(
-                            Component.literal("Close"),
-                            button -> onClose()
-                    ).bounds(getWidth() / 2 + 105, getHeight() / 2 + 73, buttonWidth - 37, BUTTON_HEIGHT).build());
-
-                    this.addRenderableWidget(searchAllSelectObj);
-                    this.addRenderableWidget(blockListScroll);
-                } else if (selectButton == ButtonSelect.ItemSetting) {
-                    loadSelectItemList();
-
-                    this.searchAllSelectObj.setResponder(searchText -> {
-                        currentItemSearchFilter = searchText;
-                        searchAllSelectObj.setTextColor(SearchUtils.getSearchTextColor(searchText));
-                        updateItemListWithFilter();
-                    });
-
-                    addRenderableWidget(Button.builder(
-                            Component.literal("Add Item"),
-                            button -> {
-                                this.minecraft.setScreen(new AllItemScreen(selectedPlayer, this));
-                            }
-                    ).bounds(getWidth() / 2 + 105, getHeight() / 2 - 50, buttonWidth - 37, BUTTON_HEIGHT + 8).build());
-
-                    addRenderableWidget(Button.builder(
-                            Component.literal("Запрет на выбрасывание: " + (JSONSettingManager.getSettings(selectedPlayer.getUuid()).getDisableDropItem() ? "§aВКЛ" : "§cВЫКЛ")),
-                            button -> {
-                                boolean current = JSONSettingManager.getSettings(selectedPlayer.getUuid()).getDisableDropItem();
-                                JSONSettingManager.toggleGlobalItemDrop(selectedPlayer.getUuid());
-                                button.setMessage(Component.literal("Запрет на выбрасывание: " + (!current ? "§aВКЛ" : "§cВЫКЛ")));
-                            }
-                    ).bounds(getWidth() / 2 + 105, getHeight() / 2 - 18, buttonWidth - 37, BUTTON_HEIGHT + 3).build());
-
-                    addRenderableWidget(Button.builder(
-                            Component.literal("Запрет на подбор: " + (JSONSettingManager.getSettings(selectedPlayer.getUuid()).getDisablePickupItem() ? "§aВКЛ" : "§cВЫКЛ")),
-                            button -> {
-                                boolean current = JSONSettingManager.getSettings(selectedPlayer.getUuid()).getDisablePickupItem();
-                                JSONSettingManager.toggleGlobalItemPickup(selectedPlayer.getUuid());
-                                button.setMessage(Component.literal("Запрет на подбор: " + (!current ? "§aВКЛ" : "§cВЫКЛ")));
-                            }
-                    ).bounds(getWidth() / 2 + 105, getHeight() / 2 + 12, buttonWidth - 37, BUTTON_HEIGHT + 3).build());
-
-                    addRenderableWidget(Button.builder(
-                            Component.literal("Close"),
-                            button -> onClose()
-                    ).bounds(getWidth() / 2 + 105, getHeight() / 2 + 73, buttonWidth - 37, BUTTON_HEIGHT).build());
-
-                    this.addRenderableWidget(searchAllSelectObj);
-                    this.addRenderableWidget(itemListScroll);
-                } else if (selectButton == ButtonSelect.PlantingSeed) {
-                    loadSelectSeedsList();
-
-                    this.searchAllSelectObj.setResponder(searchText -> {
-                        currentSeedsSearchFilter = searchText;
-                        searchAllSelectObj.setTextColor(SearchUtils.getSearchTextColor(searchText));
-                        updateSeedsListWithFilter();
-                    });
-
-                    addRenderableWidget(Button.builder(
-                            Component.literal("Add Seed"),
-                            button -> {
-                                this.minecraft.setScreen(new AllSeedsScreen(selectedPlayer, this));
-                            }
-                    ).bounds(getWidth() / 2 + 105, getHeight() / 2 - 50, buttonWidth - 37, BUTTON_HEIGHT + 8).build());
-
-                    addRenderableWidget(Button.builder(
-                            Component.literal("Запрет на посадку: " + (JSONSettingManager.getSettings(selectedPlayer.getUuid()).getDisablePlantingSeed() ? "§aВКЛ" : "§cВЫКЛ")),
-                            button -> {
-                                boolean current = JSONSettingManager.getSettings(selectedPlayer.getUuid()).getDisablePlantingSeed();
-                                JSONSettingManager.toggleGlobalSeedPlanting(selectedPlayer.getUuid());
-                                button.setMessage(Component.literal("Запрет на посадку: " + (!current ? "§aВКЛ" : "§cВЫКЛ")));
-                            }
-                    ).bounds(getWidth() / 2 + 105, getHeight() / 2 - 18, buttonWidth - 37, BUTTON_HEIGHT + 3).build());
-
-                    addRenderableWidget(Button.builder(
-                            Component.literal("Close"),
-                            button -> onClose()
-                    ).bounds(getWidth() / 2 + 105, getHeight() / 2 + 73, buttonWidth - 37, BUTTON_HEIGHT).build());
-
-                    this.addRenderableWidget(searchAllSelectObj);
-                    this.addRenderableWidget(seedListScroll);
-                } else if (selectButton == ButtonSelect.TradingVillager) {
-                    loadSelectVillagerList();
-
-                    this.searchAllSelectObj.setResponder(searchText -> {
-                        currentVillagersSearchFilter = searchText;
-                        searchAllSelectObj.setTextColor(SearchUtils.getSearchTextColor(searchText));
-                        updateVillagersListWithFilter();
-                    });
-
-                    addRenderableWidget(Button.builder(
-                            Component.literal("Add Villager"),
-                            button -> {
-                                this.minecraft.setScreen(new AllVillagerScreen(selectedPlayer , this));
-                            }
-                    ).bounds(getWidth() / 2 + 105, getHeight() / 2 - 50, buttonWidth - 37, BUTTON_HEIGHT + 8).build());
-
-                    addRenderableWidget(Button.builder(
-                            Component.literal("Запрет на торговлю: " + (JSONSettingManager.getSettings(selectedPlayer.getUuid()).getDisableTradingVillager() ? "§aВКЛ" : "§cВЫКЛ")),
-                            button -> {
-                                boolean current = JSONSettingManager.getSettings(selectedPlayer.getUuid()).getDisableTradingVillager();
-                                JSONSettingManager.toggleGlobalVillagerTrade(selectedPlayer.getUuid());
-                                button.setMessage(Component.literal("Запрет на торговлю: " + (!current ? "§aВКЛ" : "§cВЫКЛ")));
-                            }
-                    ).bounds(getWidth() / 2 + 105, getHeight() / 2 - 18, buttonWidth - 37, BUTTON_HEIGHT + 3).build());
-
-                    addRenderableWidget(Button.builder(
-                            Component.literal("Запрет на торговлю со странствующими торговцами: " + (JSONSettingManager.getSettings(selectedPlayer.getUuid()).getDisableTradingWanderingTrader() ? "§aВКЛ" : "§cВЫКЛ")),
-                            button -> {
-                                boolean current = JSONSettingManager.getSettings(selectedPlayer.getUuid()).getDisableTradingWanderingTrader();
-                                JSONSettingManager.toggleGlobalWanderingTraderTrade(selectedPlayer.getUuid());
-                                button.setMessage(Component.literal("Запрет на торговлю со странствующими торговцами: " + (!current ? "§aВКЛ" : "§cВЫКЛ")));
-                            }
-                    ).bounds(getWidth() / 2 + 105, getHeight() / 2 - 18 + BUTTON_HEIGHT + 5, buttonWidth - 37, BUTTON_HEIGHT + 3).build());
-
-                    addRenderableWidget(Button.builder(
-                            Component.literal("Close"),
-                            button -> onClose()
-                    ).bounds(getWidth() / 2 + 105, getHeight() / 2 + 73, buttonWidth - 37, BUTTON_HEIGHT).build());
-
-                    this.addRenderableWidget(searchAllSelectObj);
-                    this.addRenderableWidget(villagerScroll);
+    private void createSpecialButtons(int startX, int startY, int buttonWidth) {
+        SpecialPlantingSeedSettingButton = Button.builder(
+                Component.literal("Посадка семян"),
+                button -> {
+                    selectButton = ButtonSelect.PlantingSeed;
+                    IsActiveSpecialSettingButton = false;
+                    init();
                 }
-            }
+        ).bounds(startX + (buttonWidth + BUTTON_SPACING) * 2, startY + BUTTON_HEIGHT + 5, buttonWidth, BUTTON_HEIGHT).build();
 
-            playerListScroll.updateEntries(getOnlinePlayers());
-            this.addRenderableWidget(playerListScroll);
+        SpecialVillagerTradingSettingButton = Button.builder(
+                Component.literal("Торговля с жителями"),
+                button -> {
+                    selectButton = ButtonSelect.TradingVillager;
+                    IsActiveSpecialSettingButton = false;
+                    init();
+                }
+        ).bounds(startX + (buttonWidth + BUTTON_SPACING) * 2, startY + (BUTTON_HEIGHT + 5) * 2, buttonWidth, BUTTON_HEIGHT).build();
+    }
+
+    private void addSpecialButtons() {
+        if (SpecialPlantingSeedSettingButton != null) {
+            this.addRenderableWidget(SpecialPlantingSeedSettingButton);
+        }
+        if (SpecialVillagerTradingSettingButton != null) {
+            this.addRenderableWidget(SpecialVillagerTradingSettingButton);
+        }
+    }
+
+    private void createScrolls() {
+        this.playerListScroll = new ScrollingPlayerList(
+                getWidth() / 2 - 108 - 98,
+                getHeight() / 2 - 94,
+                100,
+                getHeight() / 2 + 20,
+                this
+        );
+
+
+        int scrollX = getWidth() / 2 - 102;
+        int scrollY = getHeight() / 2 - 71;
+        int scrollWidth = this.backgroundWidth - 15;
+        int scrollHeight = this.backgroundHeight - 40;
+
+        this.blockListScroll = new ScrollingBlockList(this, scrollX, scrollY, scrollWidth, scrollHeight);
+        this.itemListScroll = new ScrollingItemList(this, scrollX, scrollY, scrollWidth, scrollHeight);
+        this.seedListScroll = new ScrollingSeedList(this, scrollX, scrollY, scrollWidth, scrollHeight);
+        this.villagerScroll = new ScrollingVillagerList(this, scrollX, scrollY, scrollWidth, scrollHeight);
+    }
+
+    private void createSearchBox() {
+        this.searchAllSelectObj = new EditBox(
+                getFontRender(),
+                getWidth() / 2 - 100,
+                getHeight() / 2 - 90,
+                this.backgroundWidth - 19,
+                17,
+                Component.literal("Поиск... (:id | @modid)")
+        );
+    }
+
+    private void setupSelectedMode(int buttonWidth) {
+        int buttonX = getWidth() / 2 + 105;
+        int buttonY = getHeight() / 2 - 50;
+        int btnWidth = buttonWidth - 37;
+        int btnHeight = BUTTON_HEIGHT + 8;
+
+        switch (selectButton) {
+            case BlockSetting -> setupBlockMode(buttonX, buttonY, btnWidth, btnHeight);
+            case ItemSetting -> setupItemMode(buttonX, buttonY, btnWidth, btnHeight);
+            case PlantingSeed -> setupSeedMode(buttonX, buttonY, btnWidth, btnHeight);
+            case TradingVillager -> setupVillagerMode(buttonX, buttonY, btnWidth, btnHeight);
         }
 
-        if (IsActiveSpecialSettingButton) {
-            if (SpecialPlantingSeedSettingButton != null) this.addRenderableWidget(SpecialPlantingSeedSettingButton);
-            if (SpecialVillagerTradingSettingButton != null) this.addRenderableWidget(SpecialVillagerTradingSettingButton);
+        ChaosManiaMod.LOGGER.info(selectButton.toString());
+
+        playerListScroll.updateEntries(getOnlinePlayers());
+        this.addRenderableWidget(playerListScroll);
+    }
+
+    private void setupBlockMode(int buttonX, int buttonY, int btnWidth, int btnHeight) {
+        loadSelectBlockList();
+
+        searchAllSelectObj.setResponder(searchText -> {
+            currentBlockSearchFilter = searchText;
+            searchAllSelectObj.setTextColor(SearchUtils.getSearchTextColor(searchText));
+            updateBlockListWithFilter();
+        });
+
+        if(selectedPlayer != null)
+        {
+            addRenderableWidget(Button.builder(
+                    Component.literal("Add Block"),
+                    button -> {
+                        if (minecraft != null) {
+                            minecraft.setScreen(new AllBlockScreen(selectedPlayer, this));
+                        }
+                    }).bounds(buttonX, buttonY, btnWidth, btnHeight).build());
         }
 
-        updateButtonStates();
+        // Добавляем toggle кнопки через Enum
+        addToggleButton(ToggleButtonType.BLOCK_PLACE, buttonX, buttonY + btnHeight + 5, btnWidth, BUTTON_HEIGHT + 3);
+        addToggleButton(ToggleButtonType.BLOCK_BREAK, buttonX, buttonY + (btnHeight + 5) * 2, btnWidth, BUTTON_HEIGHT + 3);
+
+        addCloseButton(buttonX, buttonY + (btnHeight + 5) * 3 + 10, btnWidth, BUTTON_HEIGHT);
+
+        this.addRenderableWidget(searchAllSelectObj);
+        this.addRenderableWidget(blockListScroll);
+    }
+
+    private void setupItemMode(int buttonX, int buttonY, int btnWidth, int btnHeight) {
+        loadSelectItemList();
+
+        searchAllSelectObj.setResponder(searchText -> {
+            currentItemSearchFilter = searchText;
+            searchAllSelectObj.setTextColor(SearchUtils.getSearchTextColor(searchText));
+            updateItemListWithFilter();
+        });
+
+        if(selectedPlayer != null)
+        {
+            addRenderableWidget(Button.builder(
+                    Component.literal("Add Item"),
+                    button -> {
+                        if (minecraft != null) {
+                            minecraft.setScreen(new AllItemScreen(selectedPlayer, this));
+                        }
+                    }).bounds(buttonX, buttonY, btnWidth, btnHeight).build());
+        }
+
+        addToggleButton(ToggleButtonType.ITEM_DROP, buttonX, buttonY + btnHeight + 5, btnWidth, BUTTON_HEIGHT + 3);
+        addToggleButton(ToggleButtonType.ITEM_PICKUP, buttonX, buttonY + (btnHeight + 5) * 2, btnWidth, BUTTON_HEIGHT + 3);
+
+        addCloseButton(buttonX, buttonY + (btnHeight + 5) * 3 + 10, btnWidth, BUTTON_HEIGHT);
+
+        this.addRenderableWidget(searchAllSelectObj);
+        this.addRenderableWidget(itemListScroll);
+    }
+
+    private void setupSeedMode(int buttonX, int buttonY, int btnWidth, int btnHeight) {
+        loadSelectSeedsList();
+
+        searchAllSelectObj.setResponder(searchText -> {
+            currentSeedsSearchFilter = searchText;
+            searchAllSelectObj.setTextColor(SearchUtils.getSearchTextColor(searchText));
+            updateSeedsListWithFilter();
+        });
+
+        if(selectedPlayer != null)
+        {
+            addRenderableWidget(Button.builder(
+                    Component.literal("Add Seed"),
+                    button -> {
+                        if (minecraft != null) {
+                            minecraft.setScreen(new AllSeedsScreen(selectedPlayer, this));
+                        }
+                    }).bounds(buttonX, buttonY, btnWidth, btnHeight).build());
+        }
+
+        addToggleButton(ToggleButtonType.SEED_PLANT, buttonX, buttonY + btnHeight + 5, btnWidth, BUTTON_HEIGHT + 3);
+
+        addCloseButton(buttonX, buttonY + (btnHeight + 5) * 2 + 10, btnWidth, BUTTON_HEIGHT);
+
+        this.addRenderableWidget(searchAllSelectObj);
+        this.addRenderableWidget(seedListScroll);
+    }
+
+    private void setupVillagerMode(int buttonX, int buttonY, int btnWidth, int btnHeight) {
+        loadSelectVillagerList();
+
+        searchAllSelectObj.setResponder(searchText -> {
+            currentVillagersSearchFilter = searchText;
+            searchAllSelectObj.setTextColor(SearchUtils.getSearchTextColor(searchText));
+            updateVillagersListWithFilter();
+        });
+
+        if(selectedPlayer != null)
+        {
+            addRenderableWidget(Button.builder(
+                    Component.literal("Add Villager"),
+                    button -> {
+                        if (minecraft != null) {
+                            minecraft.setScreen(new AllVillagerScreen(selectedPlayer, this));
+                        }
+                    }).bounds(buttonX, buttonY, btnWidth, btnHeight).build());
+        }
+
+        addToggleButton(ToggleButtonType.VILLAGER_TRADE, buttonX, buttonY + btnHeight + 5, btnWidth, BUTTON_HEIGHT + 3);
+        addToggleButton(ToggleButtonType.WANDERING_TRADER, buttonX, buttonY + (btnHeight + 5) * 2, btnWidth, BUTTON_HEIGHT + 3);
+
+        addCloseButton(buttonX, buttonY + (btnHeight + 5) * 3 + 10, btnWidth, BUTTON_HEIGHT);
+
+        this.addRenderableWidget(searchAllSelectObj);
+        this.addRenderableWidget(villagerScroll);
+    }
+
+    // ==================== Вспомогательные методы для кнопок ====================
+
+    private void addToggleButton(ToggleButtonType type, int x, int y, int width, int height) {
+        if (selectedPlayer != null) {
+            this.addRenderableWidget(type.createButton(selectedPlayer.getUuid(), x, y, width, height));
+        }
+    }
+
+    private void addCloseButton(int x, int y, int width, int height) {
+        this.addRenderableWidget(Button.builder(
+                Component.literal("Close"),
+                button -> onClose()
+        ).bounds(x, y, width, height).build());
     }
 
     private void updateButtonStates() {
@@ -703,53 +837,71 @@ public class MainSettingScreen extends Screen {
         }
     }
 
+    // ==================== Render методы ====================
+
     @Override
     public void render(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         guiGraphics.fill(0, 0, getWidth(), getHeight(), 0xCC000000);
 
         if (selectButton == null) {
-            String Title = "§lВыберите категорию возможностей §r";
-            guiGraphics.drawString(
-                    this.font,
-                    Component.literal(Title),
-                    getWidth() / 2 - this.font.width(Title) / 2,
-                    getHeight() / 2,
-                    0xE1A12D,
-                    false
-            );
+            renderTitle(guiGraphics, "§lВыберите категорию возможностей §r", 0xE1A12D);
         } else {
-            guiGraphics.blit(BACKGROUND_TEXTURE, getWidth() / 2 + 75, getHeight() / 2 - 155 / 2, 0, 0, 150, 180, 150, 180);
-            guiGraphics.blit(BACKGROUND_TEXTURE, getWidth() / 2 - 108, getHeight() / 2 - 100, 0, 0, this.backgroundWidth, this.backgroundHeight, this.backgroundWidth, this.backgroundHeight);
-
+            renderBackground(guiGraphics);
             if (selectedPlayer == null) {
-                String Title = "§lВыберите игрока §r";
-                guiGraphics.drawString(
-                        this.font,
-                        Component.literal(Title),
-                        getWidth() / 2 - this.font.width(Title) / 2,
-                        getHeight() / 2,
-                        0x7F7D7A,
-                        false
-                );
+                renderTitle(guiGraphics, "§lВыберите игрока §r", 0x7F7D7A);
             } else {
-                String Title = "§5§lTools §r";
-                guiGraphics.drawString(
-                        this.font,
-                        Component.literal(Title),
-                        getWidth() / 2 - this.font.width(Title) / 2 + 123,
-                        getHeight() / 2 - 65,
-                        0xE1A12D,
-                        false
-                );
+                renderToolsLabel(guiGraphics);
             }
         }
 
         super.render(guiGraphics, mouseX, mouseY, partialTick);
     }
 
+    private void renderTitle(GuiGraphics guiGraphics, String text, int color) {
+        guiGraphics.drawString(
+                this.font,
+                Component.literal(text),
+                getWidth() / 2 - this.font.width(text) / 2,
+                getHeight() / 2,
+                color,
+                false
+        );
+    }
+
+    private void renderBackground(GuiGraphics guiGraphics) {
+        guiGraphics.blit(BACKGROUND_TEXTURE, getWidth() / 2 + 75, getHeight() / 2 - 155 / 2, 0, 0, 150, 180, 150, 180);
+        guiGraphics.blit(BACKGROUND_TEXTURE, getWidth() / 2 - 108, getHeight() / 2 - 100, 0, 0, this.backgroundWidth, this.backgroundHeight, this.backgroundWidth, this.backgroundHeight);
+    }
+
+    private void renderToolsLabel(GuiGraphics guiGraphics) {
+        String text = "§5§lTools §r";
+        guiGraphics.drawString(
+                this.font,
+                Component.literal(text),
+                getWidth() / 2 - this.font.width(text) / 2 + 123,
+                getHeight() / 2 - 65,
+                0xE1A12D,
+                false
+        );
+    }
+
     @Override
     public void renderBackground(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         // Отключаем стандартный фон
+    }
+
+    // ==================== Остальные методы ====================
+
+    public void selectPlayer(PlayerInfoData player) {
+        selectedPlayer = player;
+        currentBlockSearchFilter = "";
+        currentItemSearchFilter = "";
+        currentSeedsSearchFilter = "";
+        currentVillagersSearchFilter = "";
+        if (searchAllSelectObj != null) {
+            searchAllSelectObj.setValue("");
+        }
+        this.init();
     }
 
     @Override
@@ -787,19 +939,7 @@ public class MainSettingScreen extends Screen {
         return this.height;
     }
 
-    private void selectPlayer(PlayerInfoData player) {
-        selectedPlayer = player;
-        currentBlockSearchFilter = "";
-        currentItemSearchFilter = "";
-        currentSeedsSearchFilter = "";
-        currentVillagersSearchFilter = "";
-        if (searchAllSelectObj != null) {
-            searchAllSelectObj.setValue("");
-        }
-        this.init();
-    }
-
-    // ==================== Внутренние классы ====================
+    // Внутренние Entry
 
     public static class BlockEntry {
         private final Block block;
@@ -812,9 +952,9 @@ public class MainSettingScreen extends Screen {
             this.name = itemStack.getHoverName().getString();
         }
 
-        Block getBlock() { return block; }
-        ItemStack getItemStack() { return itemStack; }
-        String getName() { return name; }
+        public Block getBlock() { return block; }
+        public ItemStack getItemStack() { return itemStack; }
+        public String getName() { return name; }
 
         @Override
         public boolean equals(Object obj) {
@@ -853,12 +993,13 @@ public class MainSettingScreen extends Screen {
             return Objects.equals(item, that.item);
         }
 
-        @Override        public int hashCode() {
+        @Override
+        public int hashCode() {
             return Objects.hash(item);
         }
     }
 
-    static class ProfessionVillagerEntry {
+    public static class ProfessionVillagerEntry {
         private final String id;
         private final String name;
         private final VillagerProfession profession;
@@ -907,525 +1048,6 @@ public class MainSettingScreen extends Screen {
             }
 
             return result;
-        }
-    }
-
-    // ==================== Скроллы ====================
-
-    private static class ScrollingPlayerList extends ObjectSelectionList<ScrollingPlayerList.PlayerSlot> {
-        private static final int SLOT_HEIGHT = 30;
-        private final MainSettingScreen parent;
-
-        ScrollingPlayerList(int x, int y, int width, int height, MainSettingScreen parent) {
-            super(Objects.requireNonNull(parent.minecraft), width, height, y, SLOT_HEIGHT);
-            this.parent = parent;
-            this.setX(x);
-        }
-
-        @Override
-        public int getRowWidth() {
-            return this.width;
-        }
-
-        @Override
-        protected int getScrollbarPosition() {
-            return this.getX() + this.width - 6;
-        }
-
-        void updateEntries(List<PlayerInfoData> players) {
-            this.clearEntries();
-            players.forEach(player -> this.addEntry(new PlayerSlot(parent, player)));
-        }
-
-        class PlayerSlot extends ObjectSelectionList.Entry<PlayerSlot> {
-            private final MainSettingScreen parent;
-            private final PlayerInfoData player;
-            private boolean isSelected;
-
-            PlayerSlot(MainSettingScreen parent, PlayerInfoData player) {
-                this.parent = parent;
-                this.player = player;
-                this.isSelected = false;
-            }
-
-            @Override
-            public void render(@NotNull GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean hovered, float partialTick) {
-                if (parent.minecraft == null) return;
-
-                this.isSelected = selectedPlayer != null && selectedPlayer.equals(player);
-
-                if (isSelected) {
-                    guiGraphics.fill(left, top, left + width, top + height, 0x44FFAA00);
-                } else if (hovered) {
-                    guiGraphics.fill(left, top, left + width, top + height, 0x44FFFFFF);
-                }
-
-                if (player.isAllPlayers()) {
-                    guiGraphics.fill(left, top, left + width, top + height, 0x2266FF66);
-                }
-
-                if (player.isAllPlayers()) {
-                    guiGraphics.fill(left + 4, top + 4, left + 24, top + 24, 0xFFAA44AA);
-                    int centerX = left + 14;
-                    int centerY = top + 14;
-                    guiGraphics.fill(centerX - 1, centerY - 6, centerX + 1, centerY + 6, 0xFFFFFF);
-                    guiGraphics.fill(centerX - 6, centerY - 1, centerX + 6, centerY + 1, 0xFFFFFF);
-                } else {
-                    guiGraphics.fill(left + 4, top + 4, left + 24, top + 24, 0xFF44AA44);
-                }
-
-                Font font = parent.minecraft.font;
-                int color = isSelected ? 0xFFFFAA : 0xFFFFFF;
-
-                Component displayName;
-                if (player.isAllPlayers()) {
-                    displayName = Component.literal("§6§l[ВСЕМ]");
-                } else {
-                    displayName = Component.literal(player.getName());
-                }
-
-                guiGraphics.drawString(font, displayName, left + 30, top + (height - 8) / 2, color, false);
-
-                if (isSelected) {
-                    guiGraphics.drawString(font, "✓", left + width - 15, top + (height - 8) / 2, 0x00FF00, false);
-                }
-            }
-
-            @Override
-            public boolean mouseClicked(double mouseX, double mouseY, int button) {
-                parent.selectPlayer(player);
-                return true;
-            }
-
-            @Override
-            public @NotNull Component getNarration() {
-                return Component.literal(player.isAllPlayers() ? "[ВСЕМ]" : player.getName());
-            }
-        }
-    }
-
-    private static class ScrollingBlockList extends ObjectSelectionList<ScrollingBlockList.BlockSlot> {
-        private static final int SLOT_HEIGHT = 55;
-        private final MainSettingScreen parent;
-
-        ScrollingBlockList(int x, int y, int width, int height, MainSettingScreen parent) {
-            super(Objects.requireNonNull(parent.minecraft), width, height, y, SLOT_HEIGHT);
-            this.parent = parent;
-            this.setX(x);
-        }
-
-        @Override
-        public int getRowWidth() {
-            return this.width;
-        }
-
-        @Override
-        protected int getScrollbarPosition() {
-            return this.getX() + this.width - 6;
-        }
-
-        void updateEntries(List<BlockEntry> blocks) {
-            this.clearEntries();
-            if (blocks != null) {
-                blocks.forEach(block -> this.addEntry(new BlockSlot(parent, block)));
-            }
-        }
-
-        static class BlockSlot extends ObjectSelectionList.Entry<BlockSlot> {
-            private final MainSettingScreen parent;
-            private final BlockEntry block;
-            private final Button DisableplaceItemButton;
-            private final Button DisableBreakItemButton;
-
-            BlockSlot(MainSettingScreen parent, BlockEntry block) {
-                this.parent = parent;
-                this.block = block;
-
-                this.DisableplaceItemButton = Button.builder(
-                                Component.literal(!JSONSettingManager.getSettings(selectedPlayer.getUuid()).canPlaceBlock(BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString()) ? "✖" : "✔"),
-                                button -> {
-                                    JSONSettingManager.toggleBlockPlace(selectedPlayer.getUuid(), BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString());
-                                    button.setMessage(Component.literal(!JSONSettingManager.getSettings(selectedPlayer.getUuid()).canPlaceBlock(BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString()) ? "✖" : "✔"));
-                                }
-                        ).bounds(0, 0, 20, 20)
-                        .tooltip(Tooltip.create(Component.literal("Запретить устанавливать блоки")))
-                        .build();
-
-                this.DisableBreakItemButton = Button.builder(
-                                Component.literal(!JSONSettingManager.getSettings(selectedPlayer.getUuid()).canBreakBlock(BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString()) ? "✖" : "✔"),
-                                button -> {
-                                    JSONSettingManager.toggleBlockBreak(selectedPlayer.getUuid(), BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString());
-                                    button.setMessage(Component.literal(!JSONSettingManager.getSettings(selectedPlayer.getUuid()).canBreakBlock(BuiltInRegistries.BLOCK.getKey(block.getBlock()).toString()) ? "✖" : "✔"));
-                                }
-                        ).bounds(0, 0, 20, 20)
-                        .tooltip(Tooltip.create(Component.literal("Запретить ломать блоки")))
-                        .build();
-            }
-
-            @Override
-            public void render(@NotNull GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean hovered, float partialTick) {
-                if (parent.minecraft == null) return;
-
-                Font font = parent.minecraft.font;
-                ItemStack stack = block.getItemStack();
-                String name = block.getName();
-
-                if (hovered) {
-                    guiGraphics.fill(left, top, left + width, top + height, 0x44FFFFFF);
-                }
-
-                guiGraphics.renderItem(stack, left + 4, top + 14);
-                guiGraphics.renderItemDecorations(font, stack, left + 4, top + 14);
-
-                if (font.width(name) > width - 90) {
-                    name = font.plainSubstrByWidth(name, width - 90) + "...";
-                }
-                guiGraphics.drawString(font, name, left + 28, top + 11, 0xFFFFFF, false);
-
-                ResourceLocation key = BuiltInRegistries.BLOCK.getKey(block.getBlock());
-                String idString = key.toString();
-                if (font.width(idString) > width - 120) {
-                    idString = font.plainSubstrByWidth(idString, width - 120) + "...";
-                }
-                guiGraphics.drawString(font, idString, left + 28, top + 23, 0x888888, false);
-
-                int buttonWidth = 20;
-                int buttonHeight = 20;
-                int buttonX = left + width - buttonWidth - 35;
-                int buttonY = top + (height - buttonHeight) / 2;
-
-                DisableplaceItemButton.setX(buttonX);
-                DisableplaceItemButton.setY(buttonY);
-
-                DisableBreakItemButton.setX(buttonX + 25);
-                DisableBreakItemButton.setY(buttonY);
-
-                DisableplaceItemButton.render(guiGraphics, mouseX, mouseY, partialTick);
-                DisableBreakItemButton.render(guiGraphics, mouseX, mouseY, partialTick);
-            }
-
-            @Override
-            public boolean mouseClicked(double mouseX, double mouseY, int button) {
-                if (DisableplaceItemButton.mouseClicked(mouseX, mouseY, button)) {
-                    return true;
-                } else if (DisableBreakItemButton.mouseClicked(mouseX, mouseY, button)) {
-                    return true;
-                }
-                return false;
-            }
-
-            @Override
-            public @NotNull Component getNarration() {
-                return Component.literal(block.getName());
-            }
-        }
-    }
-
-    private static class ScrollingItemList extends ObjectSelectionList<ScrollingItemList.ItemSlot> {
-        private static final int SLOT_HEIGHT = 55;
-        private final MainSettingScreen parent;
-
-        ScrollingItemList(int x, int y, int width, int height, MainSettingScreen parent) {
-            super(Objects.requireNonNull(parent.minecraft), width, height, y, SLOT_HEIGHT);
-            this.parent = parent;
-            this.setX(x);
-        }
-
-        @Override
-        public int getRowWidth() {
-            return this.width;
-        }
-
-        @Override
-        protected int getScrollbarPosition() {
-            return this.getX() + this.width - 6;
-        }
-
-        void updateEntries(List<ItemEntry> items) {
-            this.clearEntries();
-            if (items != null) {
-                items.forEach(item -> this.addEntry(new ItemSlot(parent, item)));
-            }
-        }
-
-        static class ItemSlot extends ObjectSelectionList.Entry<ItemSlot> {
-            private final MainSettingScreen parent;
-            private final ItemEntry item;
-            private final Button DisableDropItemButton;
-            private final Button DisablePickupItemButton;
-
-            ItemSlot(MainSettingScreen parent, ItemEntry item) {
-                this.parent = parent;
-                this.item = item;
-
-                this.DisableDropItemButton = Button.builder(
-                                Component.literal(!JSONSettingManager.getSettings(selectedPlayer.getUuid()).canDropItem(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "✖" : "✔"),
-                                button -> {
-                                    JSONSettingManager.toggleItemDrop(selectedPlayer.getUuid(), BuiltInRegistries.ITEM.getKey(item.getItem()).toString());
-                                    button.setMessage(Component.literal(!JSONSettingManager.getSettings(selectedPlayer.getUuid()).canDropItem(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "✖" : "✔"));
-                                }
-                        ).bounds(0, 0, 20, 20)
-                        .tooltip(Tooltip.create(Component.literal("Запретить выбрасывать предмет")))
-                        .build();
-
-                this.DisablePickupItemButton = Button.builder(
-                                Component.literal(!JSONSettingManager.getSettings(selectedPlayer.getUuid()).canPickupItem(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "✖" : "✔"),
-                                button -> {
-                                    JSONSettingManager.toggleItemPickup(selectedPlayer.getUuid(), BuiltInRegistries.ITEM.getKey(item.getItem()).toString());
-                                    button.setMessage(Component.literal(!JSONSettingManager.getSettings(selectedPlayer.getUuid()).canPickupItem(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "✖" : "✔"));
-                                }
-                        ).bounds(0, 0, 20, 20)
-                        .tooltip(Tooltip.create(Component.literal("Запретить подбирать предмет")))
-                        .build();
-            }
-
-            @Override
-            public void render(@NotNull GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean hovered, float partialTick) {
-                if (parent.minecraft == null) return;
-
-                Font font = parent.minecraft.font;
-                ItemStack stack = item.getItemStack();
-                String name = item.getName();
-
-                if (hovered) {
-                    guiGraphics.fill(left, top, left + width, top + height, 0x44FFFFFF);
-                }
-
-                guiGraphics.renderItem(stack, left + 4, top + 14);
-                guiGraphics.renderItemDecorations(font, stack, left + 4, top + 14);
-
-                if (font.width(name) > width - 90) {
-                    name = font.plainSubstrByWidth(name, width - 90) + "...";
-                }
-                guiGraphics.drawString(font, name, left + 28, top + 11, 0xFFFFFF, false);
-
-                ResourceLocation key = BuiltInRegistries.ITEM.getKey(item.getItem());
-                String idString = key.toString();
-                if (font.width(idString) > width - 120) {
-                    idString = font.plainSubstrByWidth(idString, width - 120) + "...";
-                }
-                guiGraphics.drawString(font, idString, left + 28, top + 23, 0x888888, false);
-
-                int buttonWidth = 20;
-                int buttonHeight = 20;
-                int buttonX = left + width - buttonWidth - 35;
-                int buttonY = top + (height - buttonHeight) / 2;
-
-                DisableDropItemButton.setX(buttonX);
-                DisableDropItemButton.setY(buttonY);
-
-                DisablePickupItemButton.setX(buttonX + 25);
-                DisablePickupItemButton.setY(buttonY);
-
-                DisableDropItemButton.render(guiGraphics, mouseX, mouseY, partialTick);
-                DisablePickupItemButton.render(guiGraphics, mouseX, mouseY, partialTick);
-            }
-
-            @Override
-            public boolean mouseClicked(double mouseX, double mouseY, int button) {
-                if (DisableDropItemButton.mouseClicked(mouseX, mouseY, button)) {
-                    return true;
-                } else if (DisablePickupItemButton.mouseClicked(mouseX, mouseY, button)) {
-                    return true;
-                }
-                return false;
-            }
-
-            @Override
-            public @NotNull Component getNarration() {
-                return Component.literal(item.getName());
-            }
-        }
-    }
-
-    private static class ScrollingSeedList extends ObjectSelectionList<ScrollingSeedList.SeedSlot> {
-        private static final int SLOT_HEIGHT = 55;
-        private final MainSettingScreen parent;
-
-        ScrollingSeedList(int x, int y, int width, int height, MainSettingScreen parent) {
-            super(Objects.requireNonNull(parent.minecraft), width, height, y, SLOT_HEIGHT);
-            this.parent = parent;
-            this.setX(x);
-        }
-
-        @Override
-        public int getRowWidth() {
-            return this.width;
-        }
-
-        @Override
-        protected int getScrollbarPosition() {
-            return this.getX() + this.width - 6;
-        }
-
-        void updateEntries(List<ItemEntry> items) {
-            this.clearEntries();
-            if (items != null) {
-                items.forEach(item -> this.addEntry(new SeedSlot(parent, item)));
-            }
-        }
-
-        static class SeedSlot extends ObjectSelectionList.Entry<SeedSlot> {
-            private final MainSettingScreen parent;
-            private final ItemEntry item;
-            private final Button DisablePlanSeedButton;
-
-            SeedSlot(MainSettingScreen parent, ItemEntry item) {
-                this.parent = parent;
-                this.item = item;
-
-                this.DisablePlanSeedButton = Button.builder(
-                                Component.literal(!JSONSettingManager.getSettings(selectedPlayer.getUuid()).canPlanSeed(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "✖" : "✔"),
-                                button -> {
-                                    JSONSettingManager.toggleSeedPlanting(selectedPlayer.getUuid(), BuiltInRegistries.ITEM.getKey(item.getItem()).toString());
-                                    button.setMessage(Component.literal(!JSONSettingManager.getSettings(selectedPlayer.getUuid()).canPlanSeed(BuiltInRegistries.ITEM.getKey(item.getItem()).toString()) ? "✖" : "✔"));
-                                }
-                        ).bounds(0, 0, 20, 20)
-                        .tooltip(Tooltip.create(Component.literal("Запретить сажать культуру")))
-                        .build();
-            }
-
-            @Override
-            public void render(@NotNull GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean hovered, float partialTick) {
-                if (parent.minecraft == null) return;
-
-                Font font = parent.minecraft.font;
-                ItemStack stack = item.getItemStack();
-                String name = item.getName();
-
-                if (hovered) {
-                    guiGraphics.fill(left, top, left + width, top + height, 0x44FFFFFF);
-                }
-
-                guiGraphics.renderItem(stack, left + 4, top + 14);
-                guiGraphics.renderItemDecorations(font, stack, left + 4, top + 14);
-
-                if (font.width(name) > width - 90) {
-                    name = font.plainSubstrByWidth(name, width - 90) + "...";
-                }
-                guiGraphics.drawString(font, name, left + 28, top + 11, 0xFFFFFF, false);
-
-                ResourceLocation key = BuiltInRegistries.ITEM.getKey(item.getItem());
-                String idString = key.toString();
-                if (font.width(idString) > width - 120) {
-                    idString = font.plainSubstrByWidth(idString, width - 120) + "...";
-                }
-                guiGraphics.drawString(font, idString, left + 28, top + 23, 0x888888, false);
-
-                int buttonWidth = 20;
-                int buttonHeight = 20;
-                int buttonX = left + width - buttonWidth - 35;
-                int buttonY = top + (height - buttonHeight) / 2;
-
-                DisablePlanSeedButton.setX(buttonX + 25);
-                DisablePlanSeedButton.setY(buttonY);
-
-                DisablePlanSeedButton.render(guiGraphics, mouseX, mouseY, partialTick);
-            }
-
-            @Override
-            public boolean mouseClicked(double mouseX, double mouseY, int button) {
-                return DisablePlanSeedButton.mouseClicked(mouseX, mouseY, button);
-            }
-
-            @Override
-            public @NotNull Component getNarration() {
-                return Component.literal(item.getName());
-            }
-        }
-    }
-
-    private static class ScrollingVillagerList extends ObjectSelectionList<ScrollingVillagerList.VillagerSlot> {
-        private static final int SLOT_HEIGHT = 55;
-        private final MainSettingScreen parent;
-
-        ScrollingVillagerList(int x, int y, int width, int height, MainSettingScreen parent) {
-            super(Objects.requireNonNull(parent.minecraft), width, height, y, SLOT_HEIGHT);
-            this.parent = parent;
-            this.setX(x);
-        }
-
-        @Override
-        public int getRowWidth() {
-            return this.width;
-        }
-
-        @Override
-        protected int getScrollbarPosition() {
-            return this.getX() + this.width - 6;
-        }
-
-        void updateEntries(List<ProfessionVillagerEntry> items) {
-            this.clearEntries();
-            if (items != null) {
-                items.forEach(item -> this.addEntry(new VillagerSlot(parent, item)));
-            }
-        }
-
-        static class VillagerSlot extends ObjectSelectionList.Entry<VillagerSlot> {
-            private final MainSettingScreen parent;
-            private final ProfessionVillagerEntry profession;
-            private final Button DisableTradVillagerButton;
-
-            VillagerSlot(MainSettingScreen parent, ProfessionVillagerEntry profession) {
-                this.parent = parent;
-                this.profession = profession;
-
-                this.DisableTradVillagerButton = Button.builder(
-                                Component.literal(!JSONSettingManager.getSettings(selectedPlayer.getUuid()).canTradeWithVillager(profession.getId()) ? "✖" : "✔"),
-                                button -> {
-                                    ChaosManiaMod.LOGGER.info(JSONSettingManager.getSettings(selectedPlayer.getUuid()).canTradeWithVillager(profession.getId()) ? "✖" : "✔");
-                                    JSONSettingManager.toggleVillagerTrade(selectedPlayer.getUuid(), profession.getId());
-                                    button.setMessage(Component.literal(!JSONSettingManager.getSettings(selectedPlayer.getUuid()).canTradeWithVillager(profession.getId()) ? "✖" : "✔"));
-                                }
-                        ).bounds(0, 0, 20, 20)
-                        .tooltip(Tooltip.create(Component.literal("Запретить торговлю")))
-                        .build();
-            }
-
-            @Override
-            public void render(@NotNull GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean hovered, float partialTick) {
-                if (parent.minecraft == null) return;
-
-                Font font = parent.minecraft.font;
-                String name = profession.getName();
-
-                if (hovered) {
-                    guiGraphics.fill(left, top, left + width, top + height, 0x44FFFFFF);
-                }
-
-                if (font.width(name) > width - 90) {
-                    name = font.plainSubstrByWidth(name, width - 90) + "...";
-                }
-                guiGraphics.drawString(font, name, left + 28, top + 11, 0xFFFFFF, false);
-
-                ResourceLocation key = BuiltInRegistries.VILLAGER_PROFESSION.getKey(profession.getProfession());
-                String idString = key.toString();
-                if (font.width(idString) > width - 120) {
-                    idString = font.plainSubstrByWidth(idString, width - 120) + "...";
-                }
-                guiGraphics.drawString(font, idString, left + 28, top + 23, 0x888888, false);
-
-                int buttonWidth = 20;
-                int buttonHeight = 20;
-                int buttonX = left + width - buttonWidth - 35;
-                int buttonY = top + (height - buttonHeight) / 2;
-
-                DisableTradVillagerButton.setX(buttonX + 25);
-                DisableTradVillagerButton.setY(buttonY);
-
-                DisableTradVillagerButton.render(guiGraphics, mouseX, mouseY, partialTick);
-            }
-
-            @Override
-            public boolean mouseClicked(double mouseX, double mouseY, int button) {
-                return DisableTradVillagerButton.mouseClicked(mouseX, mouseY, button);
-            }
-
-            @Override
-            public @NotNull Component getNarration() {
-                return Component.literal(profession.getName());
-            }
         }
     }
 }

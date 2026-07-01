@@ -1,12 +1,13 @@
 package net.fernyam.chaosmania.gui.custom;
 
-import net.fernyam.chaosmania.data.JSONSettingManager;
+import net.fernyam.chaosmania.data.settings.SettingsManager;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
@@ -29,21 +30,18 @@ public class AllSeedsScreen extends BaseSelectionScreen<Item> {
     protected Collection<Item> getAllElements() {
         Set<Item> seedsSet = new HashSet<>();
 
-        // Все предметы из тега c:seeds
         BuiltInRegistries.ITEM.getTag(C_SEEDS).ifPresent(tag -> {
             for (Holder<Item> holder : tag) {
                 seedsSet.add(holder.value());
             }
         });
 
-        // Все предметы из тега c:crops
         BuiltInRegistries.ITEM.getTag(C_CROPS).ifPresent(tag -> {
             for (Holder<Item> holder : tag) {
                 seedsSet.add(holder.value());
             }
         });
 
-        // Все предметы из тега minecraft:flowers
         BuiltInRegistries.ITEM.getTag(MINECRAFT_FLOWERS).ifPresent(tag -> {
             for (Holder<Item> holder : tag) {
                 seedsSet.add(holder.value());
@@ -65,17 +63,31 @@ public class AllSeedsScreen extends BaseSelectionScreen<Item> {
 
     @Override
     protected void addElementToPlayer(Item item) {
-        JSONSettingManager.toggleSeedInList(player.getUuid(), item);
+        var settings = SettingsManager.getSeedSettings(player.getUuid());
+        if (settings != null) {
+            String id = getElementId(item);
+            if (!settings.isSeedExists(id)) {
+                settings.addSeed(id);
+                SettingsManager.saveSeedSettings(player.getUuid());
+            }
+        }
     }
 
     @Override
     protected void removeElementFromPlayer(Item item) {
-        JSONSettingManager.toggleSeedInList(player.getUuid(), item);
+        var settings = SettingsManager.getSeedSettings(player.getUuid());
+        if (settings != null) {
+            String id = getElementId(item);
+            if (settings.isSeedExists(id)) {
+                settings.removeSeed(id);
+                SettingsManager.saveSeedSettings(player.getUuid());
+            }
+        }
     }
 
     @Override
     protected boolean isElementInPlayerSettings(Item item) {
-        var settings = JSONSettingManager.getSettings(player.getUuid());
+        var settings = SettingsManager.getSeedSettings(player.getUuid());
         return settings != null && settings.isSeedExists(getElementId(item));
     }
 

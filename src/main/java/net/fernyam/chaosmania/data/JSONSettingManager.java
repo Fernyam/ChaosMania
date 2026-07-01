@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import net.fernyam.chaosmania.ChaosManiaMod;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.npc.VillagerProfession;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
@@ -22,7 +23,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class JSONSettingManager {
     // Константы
-    public static final UUID ALL_PLAYER_UUID = UUID.fromString("00000000-0000-0000-0000-000000000000");
+    public static final String ALL_PLAYER_UUID = "00000000-0000-0000-0000-000000000000";
     private static final String ALL_PLAYER_NAME = "§6§l[ВСЕМ]";
 
     private static final Logger LOGGER = LogManager.getLogger(ChaosManiaMod.MOD_ID);
@@ -34,7 +35,7 @@ public class JSONSettingManager {
     private static final Type SETTINGS_TYPE = new TypeToken<ArrayList<PlayerSettings>>() {}.getType();
 
     // Кэш и потоко-безопасность
-    private static Map<UUID, PlayerSettings> cache = new HashMap<>();
+    private static Map<String, PlayerSettings> cache = new HashMap<>();
     private static boolean cacheLoaded = false;
     private static final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
@@ -58,9 +59,8 @@ public class JSONSettingManager {
                 if (settingsList != null) {
                     for (PlayerSettings ps : settingsList) {
                         try {
-                            UUID uuid = UUID.fromString(ps.getUuidPlayer());
-                            ps.setUuid(uuid);
-                            cache.put(uuid, ps);
+                            ps.setUuidPlayer(ps.getUuidPlayer());
+                            cache.put(ps.getUuidPlayer(), ps);
                         } catch (IllegalArgumentException e) {
                             LOGGER.error("Invalid UUID in config: {}", ps.getUuidPlayer(), e);
                         }
@@ -155,7 +155,7 @@ public class JSONSettingManager {
 
     // ==================== Публичные методы доступа ====================
 
-    public static PlayerSettings getSettings(UUID uuid) {
+    public static PlayerSettings getSettings(String uuid) {
         loadCache();
         lock.readLock().lock();
         try {
@@ -176,7 +176,7 @@ public class JSONSettingManager {
     }
 
     public static void updateSettings(PlayerSettings settings) {
-        if (settings == null || settings.getUuid() == null) {
+        if (settings == null || settings.getUuidPlayer() == null) {
             LOGGER.error("Cannot update null settings or settings with null UUID");
             return;
         }
@@ -184,14 +184,14 @@ public class JSONSettingManager {
         loadCache();
         lock.writeLock().lock();
         try {
-            cache.put(settings.getUuid(), settings);
+            cache.put(settings.getUuidPlayer(), settings);
             saveCacheToFile();
         } finally {
             lock.writeLock().unlock();
         }
     }
 
-    public static void addNewPlayer(String name, UUID uuid) {
+    public static void addNewPlayer(String name, String uuid) {
         if (uuid == null || ALL_PLAYER_UUID.equals(uuid)) return;
 
         loadCache();
@@ -213,7 +213,7 @@ public class JSONSettingManager {
         }
     }
 
-    public static void removePlayer(UUID uuid) {
+    public static void removePlayer(String uuid) {
         if (uuid == null || ALL_PLAYER_UUID.equals(uuid)) return;
 
         loadCache();
@@ -230,7 +230,7 @@ public class JSONSettingManager {
 
     // ==================== Работа с блоками ====================
 
-    public static void toggleBlockInList(UUID uuid, Block block) {
+    public static void toggleBlockInList(String uuid, Block block) {
         if (block == null) return;
 
         PlayerSettings settings = getSettings(uuid);
@@ -245,7 +245,7 @@ public class JSONSettingManager {
         }
     }
 
-    public static void setBlockPlaceEnabled(UUID uuid, String blockId, boolean enabled) {
+    public static void setBlockPlaceEnabled(String uuid, String blockId, boolean enabled) {
         PlayerSettings settings = getSettings(uuid);
         if (settings != null) {
             settings.setBlockPlace(blockId, enabled);
@@ -253,7 +253,7 @@ public class JSONSettingManager {
         }
     }
 
-    public static void setBlockBreakEnabled(UUID uuid, String blockId, boolean enabled) {
+    public static void setBlockBreakEnabled(String uuid, String blockId, boolean enabled) {
         PlayerSettings settings = getSettings(uuid);
         if (settings != null) {
             settings.setBlockBreak(blockId, enabled);
@@ -261,7 +261,7 @@ public class JSONSettingManager {
         }
     }
 
-    public static void toggleBlockPlace(UUID uuid, String blockId) {
+    public static void toggleBlockPlace(String uuid, String blockId) {
         PlayerSettings settings = getSettings(uuid);
         if (settings != null) {
             settings.toggleBlockPlace(blockId);
@@ -269,7 +269,7 @@ public class JSONSettingManager {
         }
     }
 
-    public static void toggleBlockBreak(UUID uuid, String blockId) {
+    public static void toggleBlockBreak(String uuid, String blockId) {
         PlayerSettings settings = getSettings(uuid);
         if (settings != null) {
             settings.toggleBlockBreak(blockId);
@@ -277,7 +277,7 @@ public class JSONSettingManager {
         }
     }
 
-    public static void toggleGlobalBlockPlace(UUID uuid) {
+    public static void toggleGlobalBlockPlace(String uuid) {
         PlayerSettings settings = getSettings(uuid);
         if (settings != null) {
             settings.toggleDisablePlaceBlock();
@@ -285,7 +285,7 @@ public class JSONSettingManager {
         }
     }
 
-    public static void toggleGlobalBlockBreak(UUID uuid) {
+    public static void toggleGlobalBlockBreak(String uuid) {
         PlayerSettings settings = getSettings(uuid);
         if (settings != null) {
             settings.toggleDisableBreakBlock();
@@ -293,19 +293,19 @@ public class JSONSettingManager {
         }
     }
 
-    public static boolean canPlaceBlock(UUID uuid, String blockId) {
+    public static boolean canPlaceBlock(String uuid, String blockId) {
         PlayerSettings settings = getSettings(uuid);
         return settings != null && settings.canPlaceBlock(blockId);
     }
 
-    public static boolean canBreakBlock(UUID uuid, String blockId) {
+    public static boolean canBreakBlock(String uuid, String blockId) {
         PlayerSettings settings = getSettings(uuid);
         return settings != null && settings.canBreakBlock(blockId);
     }
 
     // ==================== Работа с предметами ====================
 
-    public static void toggleItemInList(UUID uuid, Item item) {
+    public static void toggleItemInList(String uuid, Item item) {
         if (item == null) return;
 
         PlayerSettings settings = getSettings(uuid);
@@ -320,7 +320,7 @@ public class JSONSettingManager {
         }
     }
 
-    public static void setItemDropEnabled(UUID uuid, String itemId, boolean enabled) {
+    public static void setItemDropEnabled(String uuid, String itemId, boolean enabled) {
         PlayerSettings settings = getSettings(uuid);
         if (settings != null) {
             settings.setItemDropSetting(itemId, enabled);
@@ -328,7 +328,7 @@ public class JSONSettingManager {
         }
     }
 
-    public static void setItemPickupEnabled(UUID uuid, String itemId, boolean enabled) {
+    public static void setItemPickupEnabled(String uuid, String itemId, boolean enabled) {
         PlayerSettings settings = getSettings(uuid);
         if (settings != null) {
             settings.setItemPickupSetting(itemId, enabled);
@@ -336,7 +336,7 @@ public class JSONSettingManager {
         }
     }
 
-    public static void toggleItemDrop(UUID uuid, String itemId) {
+    public static void toggleItemDrop(String uuid, String itemId) {
         PlayerSettings settings = getSettings(uuid);
         if (settings != null) {
             settings.toggleItemDrop(itemId);
@@ -344,7 +344,7 @@ public class JSONSettingManager {
         }
     }
 
-    public static void toggleItemPickup(UUID uuid, String itemId) {
+    public static void toggleItemPickup(String uuid, String itemId) {
         PlayerSettings settings = getSettings(uuid);
         if (settings != null) {
             settings.toggleItemPickup(itemId);
@@ -352,7 +352,7 @@ public class JSONSettingManager {
         }
     }
 
-    public static void toggleGlobalItemDrop(UUID uuid) {
+    public static void toggleGlobalItemDrop(String uuid) {
         PlayerSettings settings = getSettings(uuid);
         if (settings != null) {
             settings.toggleDisableItemDrop();
@@ -360,7 +360,7 @@ public class JSONSettingManager {
         }
     }
 
-    public static void toggleGlobalItemPickup(UUID uuid) {
+    public static void toggleGlobalItemPickup(String uuid) {
         PlayerSettings settings = getSettings(uuid);
         if (settings != null) {
             settings.toggleDisableItemPickup();
@@ -368,35 +368,35 @@ public class JSONSettingManager {
         }
     }
 
-    public static boolean canDropItem(UUID uuid, String itemId) {
+    public static boolean canDropItem(String uuid, String itemId) {
         PlayerSettings settings = getSettings(uuid);
         return settings != null && settings.canDropItem(itemId);
     }
 
-    public static boolean canPickupItem(UUID uuid, String itemId) {
+    public static boolean canPickupItem(String uuid, String itemId) {
         PlayerSettings settings = getSettings(uuid);
         return settings != null && settings.canPickupItem(itemId);
     }
 
-    public static boolean canDropItem(UUID uuid, Item item) {
+    public static boolean canDropItem(String uuid, Item item) {
         String id = BuiltInRegistries.ITEM.getKey(item).toString();
         return canDropItem(uuid, id);
     }
 
-    public static boolean canPickupItem(UUID uuid, Item item) {
+    public static boolean canPickupItem(String uuid, Item item) {
         String id = BuiltInRegistries.ITEM.getKey(item).toString();
         return canPickupItem(uuid, id);
     }
 
     // ==================== Работа с семенами ====================
 
-    public static void toggleSeedInList(UUID uuid, Item seed) {
+    public static void toggleSeedInList(String uuid, Item seed) {
         if (seed == null) return;
 
         PlayerSettings settings = getSettings(uuid);
         if (settings != null) {
             String id = BuiltInRegistries.ITEM.getKey(seed).toString();
-            if (settings.isPlantSeedExists(id)) {
+            if (settings.isSeedExists(id)) {
                 settings.removeSeedElement(seed);
             } else {
                 settings.addSeedElement(seed);
@@ -405,7 +405,7 @@ public class JSONSettingManager {
         }
     }
 
-    public static void toggleSeedPlanting(UUID uuid, String seedId) {
+    public static void toggleSeedPlanting(String uuid, String seedId) {
         PlayerSettings settings = getSettings(uuid);
         if (settings != null) {
             settings.toggleSeedPlant(seedId);
@@ -413,7 +413,7 @@ public class JSONSettingManager {
         }
     }
 
-    public static void toggleGlobalSeedPlanting(UUID uuid) {
+    public static void toggleGlobalSeedPlanting(String uuid) {
         PlayerSettings settings = getSettings(uuid);
         if (settings != null) {
             settings.toggleDisablePlantingSeed();
@@ -421,14 +421,14 @@ public class JSONSettingManager {
         }
     }
 
-    public static boolean canPlantSeed(UUID uuid, String seedId) {
+    public static boolean canPlantSeed(String uuid, String seedId) {
         PlayerSettings settings = getSettings(uuid);
-        return settings != null && settings.canPlanSeed(seedId);
+        return settings != null && settings.canPlantSeed(seedId);
     }
 
     // ==================== Работа с жителями ====================
 
-    public static void addVillagerProfession(UUID uuid, String professionId) {
+    public static void addVillagerProfession(String uuid, String professionId) {
         PlayerSettings settings = getSettings(uuid);
         if (settings != null) {
             settings.addVillagerProfession(professionId);
@@ -436,7 +436,7 @@ public class JSONSettingManager {
         }
     }
 
-    public static void removeVillagerProfession(UUID uuid, String professionId) {
+    public static void removeVillagerProfession(String uuid, String professionId) {
         PlayerSettings settings = getSettings(uuid);
         if (settings != null) {
             settings.removeVillagerProfession(professionId);
@@ -444,19 +444,19 @@ public class JSONSettingManager {
         }
     }
 
-    public static void addVillagerProfession(UUID uuid, VillagerProfession profession) {
+    public static void addVillagerProfession(String uuid, VillagerProfession profession) {
         if (profession != null) {
             addVillagerProfession(uuid, BuiltInRegistries.VILLAGER_PROFESSION.getKey(profession).toString());
         }
     }
 
-    public static void removeVillagerProfession(UUID uuid, VillagerProfession profession) {
+    public static void removeVillagerProfession(String uuid, VillagerProfession profession) {
         if (profession != null) {
             removeVillagerProfession(uuid, BuiltInRegistries.VILLAGER_PROFESSION.getKey(profession).toString());
         }
     }
 
-    public static void toggleVillagerTrade(UUID uuid, String professionId) {
+    public static void toggleVillagerTrade(String uuid, String professionId) {
         PlayerSettings settings = getSettings(uuid);
         if (settings != null) {
             settings.toggleVillagerTrade(professionId);
@@ -464,7 +464,7 @@ public class JSONSettingManager {
         }
     }
 
-    public static void toggleGlobalVillagerTrade(UUID uuid) {
+    public static void toggleGlobalVillagerTrade(String uuid) {
         PlayerSettings settings = getSettings(uuid);
         if (settings != null) {
             settings.toggleDisableTradingVillager();
@@ -472,7 +472,7 @@ public class JSONSettingManager {
         }
     }
 
-    public static void toggleGlobalWanderingTraderTrade(UUID uuid) {
+    public static void toggleGlobalWanderingTraderTrade(String uuid) {
         PlayerSettings settings = getSettings(uuid);
         if (settings != null) {
             settings.toggleDisableTradingWanderingTrader();
@@ -480,29 +480,19 @@ public class JSONSettingManager {
         }
     }
 
-    public static boolean canTradeWithVillager(UUID uuid, String professionId) {
+    public static boolean canTradeWithVillager(String uuid, String professionId) {
         PlayerSettings settings = getSettings(uuid);
         return settings != null && settings.canTradeWithVillager(professionId);
     }
 
-    public static boolean canTradeWithVillager(UUID uuid, VillagerProfession profession) {
+    public static boolean canTradeWithVillager(String uuid, VillagerProfession profession) {
         String id = BuiltInRegistries.VILLAGER_PROFESSION.getKey(profession).toString();
         return canTradeWithVillager(uuid, id);
     }
 
-    public static boolean canTradeWithWanderingTrader(UUID uuid) {
+    public static boolean canTradeWithWanderingTrader(String uuid) {
         PlayerSettings settings = getSettings(uuid);
-        return settings != null && !settings.getDisableTradingWanderingTrader();
-    }
-
-    // ==================== Утилиты для GUI ====================
-
-    public static boolean isGlobalPlayer(UUID uuid) {
-        return ALL_PLAYER_UUID.equals(uuid);
-    }
-
-    public static PlayerSettings getGlobalSettings() {
-        return getSettings(ALL_PLAYER_UUID);
+        return settings != null && !settings.isDisableTradingWanderingTrader();
     }
 
 }

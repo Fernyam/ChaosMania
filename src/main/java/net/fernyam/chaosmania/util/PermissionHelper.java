@@ -1,10 +1,9 @@
 package net.fernyam.chaosmania.util;
 
-
-import net.fernyam.chaosmania.ChaosManiaMod;
-import net.fernyam.chaosmania.data.JSONSettingManager;
-import net.fernyam.chaosmania.data.PlayerSettings;
+import net.fernyam.chaosmania.data.settings.*;
+import net.fernyam.chaosmania.data.settings.custom.*;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.npc.VillagerProfession;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
@@ -12,12 +11,44 @@ import net.minecraft.world.level.block.Block;
 
 public class PermissionHelper {
 
-    private static PlayerSettings getGlobal() {
-        return JSONSettingManager.getSettings(JSONSettingManager.ALL_PLAYER_UUID);
+    private static BlockSettings getGlobalBlock() {
+        return SettingsManager.getBlockSettings(SettingsManager.ALL_PLAYER_UUID);
     }
 
-    private static PlayerSettings getPlayer(Player player) {
-        return JSONSettingManager.getSettings(player.getUUID());
+    private static ItemSettings getGlobalItem() {
+        return SettingsManager.getItemSettings(SettingsManager.ALL_PLAYER_UUID);
+    }
+
+    private static SeedSettings getGlobalSeed() {
+        return SettingsManager.getSeedSettings(SettingsManager.ALL_PLAYER_UUID);
+    }
+
+    private static VillagerSettings getGlobalVillager() {
+        return SettingsManager.getVillagerSettings(SettingsManager.ALL_PLAYER_UUID);
+    }
+
+    private static AnimalSettings getGlobalAnimal() {
+        return SettingsManager.getAnimalSettings(SettingsManager.ALL_PLAYER_UUID);
+    }
+
+    private static BlockSettings getPlayerBlock(Player player) {
+        return SettingsManager.getBlockSettings(player.getUUID().toString());
+    }
+
+    private static ItemSettings getPlayerItem(Player player) {
+        return SettingsManager.getItemSettings(player.getUUID().toString());
+    }
+
+    private static SeedSettings getPlayerSeed(Player player) {
+        return SettingsManager.getSeedSettings(player.getUUID().toString());
+    }
+
+    private static VillagerSettings getPlayerVillager(Player player) {
+        return SettingsManager.getVillagerSettings(player.getUUID().toString());
+    }
+
+    private static AnimalSettings getPlayerAnimal(Player player) {
+        return SettingsManager.getAnimalSettings(player.getUUID().toString());
     }
 
     // ==================== Блоки ====================
@@ -25,43 +56,41 @@ public class PermissionHelper {
     public static boolean canPlaceBlock(Player player, Block block) {
         if (player == null || block == null) return true;
 
-        PlayerSettings global = getGlobal();
-        PlayerSettings personal = getPlayer(player);
+        BlockSettings personal = getPlayerBlock(player);
+        BlockSettings global = getGlobalBlock();
         String blockId = BuiltInRegistries.BLOCK.getKey(block).toString();
 
-        // 1. ЛИЧНЫЕ НАСТРОЙКИ (приоритет)
-        if (personal != null && personal.isDisablePlaceBlock()) {
-            if (personal.hasBlockSetting(blockId)) {
-                return !personal.canPlaceBlock(blockId);  // true = разрешено, false = запрещено
+        if (personal != null && personal.isBlockPlaceControlEnabled()) {
+            if (personal.isBlockExists(blockId)) {
+                return personal.canPlaceBlock(blockId);
             }
         }
 
-        // 2. ГЛОБАЛЬНЫЕ НАСТРОЙКИ (fallback)
-        if (global != null && global.isDisablePlaceBlock()) {
-            if (global.hasBlockSetting(blockId)) {
-                return !global.canPlaceBlock(blockId);
+        if (global != null && global.isBlockPlaceControlEnabled()) {
+            if (global.isBlockExists(blockId)) {
+                return global.canPlaceBlock(blockId);
             }
         }
 
-        return true;  // по умолчанию разрешено
+        return true;
     }
 
     public static boolean canBreakBlock(Player player, Block block) {
         if (player == null || block == null) return true;
 
-        PlayerSettings global = getGlobal();
-        PlayerSettings personal = getPlayer(player);
+        BlockSettings personal = getPlayerBlock(player);
+        BlockSettings global = getGlobalBlock();
         String blockId = BuiltInRegistries.BLOCK.getKey(block).toString();
 
-        if (personal != null && personal.isDisableBreakBlock()) {
-            if (personal.hasBlockSetting(blockId)) {
-                return !personal.canBreakBlock(blockId);
+        if (personal != null && personal.isBlockBreakControlEnabled()) {
+            if (personal.isBlockExists(blockId)) {
+                return personal.canBreakBlock(blockId);
             }
         }
 
-        if (global != null && global.isDisableBreakBlock()) {
-            if (global.hasBlockSetting(blockId)) {
-                return !global.canBreakBlock(blockId);
+        if (global != null && global.isBlockBreakControlEnabled()) {
+            if (global.isBlockExists(blockId)) {
+                return global.canBreakBlock(blockId);
             }
         }
 
@@ -73,19 +102,19 @@ public class PermissionHelper {
     public static boolean canDropItem(Player player, Item item) {
         if (player == null || item == null) return true;
 
-        PlayerSettings global = getGlobal();
-        PlayerSettings personal = getPlayer(player);
+        ItemSettings personal = getPlayerItem(player);
+        ItemSettings global = getGlobalItem();
         String itemId = BuiltInRegistries.ITEM.getKey(item).toString();
 
-        if (personal != null && personal.isDisableDropItem()) {
-            if (personal.hasItemSetting(itemId)) {
-                return !personal.canDropItem(itemId);
+        if (personal != null && personal.isItemDropControlEnabled()) {
+            if (personal.isItemExists(itemId)) {
+                return personal.canDropItem(itemId);
             }
         }
 
-        if (global != null && global.isDisableDropItem()) {
-            if (global.hasItemSetting(itemId)) {
-                return !global.canDropItem(itemId);
+        if (global != null && global.isItemDropControlEnabled()) {
+            if (global.isItemExists(itemId)) {
+                return global.canDropItem(itemId);
             }
         }
 
@@ -95,19 +124,19 @@ public class PermissionHelper {
     public static boolean canPickupItem(Player player, Item item) {
         if (player == null || item == null) return true;
 
-        PlayerSettings global = getGlobal();
-        PlayerSettings personal = getPlayer(player);
+        ItemSettings personal = getPlayerItem(player);
+        ItemSettings global = getGlobalItem();
         String itemId = BuiltInRegistries.ITEM.getKey(item).toString();
 
-        if (personal != null && personal.isDisablePickupItem()) {
-            if (personal.hasItemSetting(itemId)) {
-                return !personal.canPickupItem(itemId);
+        if (personal != null && personal.isItemPickupControlEnabled()) {
+            if (personal.isItemExists(itemId)) {
+                return personal.canPickupItem(itemId);
             }
         }
 
-        if (global != null && global.isDisablePickupItem()) {
-            if (global.hasItemSetting(itemId)) {
-                return !global.canPickupItem(itemId);
+        if (global != null && global.isItemPickupControlEnabled()) {
+            if (global.isItemExists(itemId)) {
+                return global.canPickupItem(itemId);
             }
         }
 
@@ -119,19 +148,19 @@ public class PermissionHelper {
     public static boolean canPlantSeed(Player player, Item seed) {
         if (player == null || seed == null) return true;
 
-        PlayerSettings global = getGlobal();
-        PlayerSettings personal = getPlayer(player);
+        SeedSettings personal = getPlayerSeed(player);
+        SeedSettings global = getGlobalSeed();
         String seedId = BuiltInRegistries.ITEM.getKey(seed).toString();
 
-        if (personal != null && personal.isDisablePlantingSeed()) {
-            if (personal.hasSeedSetting(seedId)) {
-                return !personal.canPlantSeed(seedId);
+        if (personal != null && personal.isSeedPlantControlEnabled()) {
+            if (personal.isSeedExists(seedId)) {
+                return personal.canPlantSeed(seedId);
             }
         }
 
-        if (global != null && global.isDisablePlantingSeed()) {
-            if (global.hasSeedSetting(seedId)) {
-                return !global.canPlantSeed(seedId);
+        if (global != null && global.isSeedPlantControlEnabled()) {
+            if (global.isSeedExists(seedId)) {
+                return global.canPlantSeed(seedId);
             }
         }
 
@@ -141,42 +170,85 @@ public class PermissionHelper {
     // ==================== Жители ====================
 
     public static boolean canTradeWithVillager(Player player, VillagerProfession profession) {
-
         if (player == null || profession == null) return true;
 
-        PlayerSettings global = getGlobal();
-        PlayerSettings personal = getPlayer(player);
+        VillagerSettings personal = getPlayerVillager(player);
+        VillagerSettings global = getGlobalVillager();
         String professionId = BuiltInRegistries.VILLAGER_PROFESSION.getKey(profession).toString();
 
-
-        if (personal != null && personal.isDisableTradingVillager()) {
-            if (personal.hasVillagerSetting(professionId)) {
+        if (personal != null && personal.isVillagerTradeControlEnabled()) {
+            if (personal.isProfessionExists(professionId)) {
                 return personal.canTradeWithVillager(professionId);
             }
         }
 
-        if (global != null && global.isDisableTradingVillager()) {
-            if (global.hasVillagerSetting(professionId)) {
+        if (global != null && global.isVillagerTradeControlEnabled()) {
+            if (global.isProfessionExists(professionId)) {
                 return global.canTradeWithVillager(professionId);
             }
         }
+
         return true;
     }
 
     public static boolean canTradeWithWanderingTrader(Player player) {
         if (player == null) return true;
 
-        PlayerSettings global = getGlobal();
-        PlayerSettings personal = getPlayer(player);
+        VillagerSettings personal = getPlayerVillager(player);
+        VillagerSettings global = getGlobalVillager();
 
-        // Личные настройки (приоритет)
-        if (personal != null && personal.isDisableTradingWanderingTrader()) {
+        if (personal != null && personal.isWanderingTraderControlEnabled()) {
             return false;
         }
 
-        // Глобальные как fallback
-        if (global != null && global.isDisableTradingWanderingTrader()) {
+        if (global != null && global.isWanderingTraderControlEnabled()) {
             return false;
+        }
+
+        return true;
+    }
+
+    // ==================== Животные ====================
+
+    public static boolean canBreedAnimal(Player player, EntityType<?> entityType) {
+        if (player == null || entityType == null) return true;
+
+        AnimalSettings personal = getPlayerAnimal(player);
+        AnimalSettings global = getGlobalAnimal();
+        String animalId = BuiltInRegistries.ENTITY_TYPE.getKey(entityType).toString();
+
+        if (personal != null && personal.isAnimalBreedControlEnabled()) {
+            if (personal.isAnimalExists(animalId)) {
+                return personal.canBreedAnimal(animalId);
+            }
+        }
+
+        if (global != null && global.isAnimalBreedControlEnabled()) {
+            if (global.isAnimalExists(animalId)) {
+                return global.canBreedAnimal(animalId);
+            }
+        }
+
+        return true;
+    }
+
+    public static boolean canSpawnAnimal(Player player, EntityType<?> entityType) {
+        if (player == null || entityType == null) return true;
+
+        AnimalSettings personal = getPlayerAnimal(player);
+        AnimalSettings global = getGlobalAnimal();
+        String animalId = BuiltInRegistries.ENTITY_TYPE.getKey(entityType).toString();
+
+        if (personal != null && personal.isAnimalSpawnControlEnabled()) {
+            if (personal.isAnimalExists(animalId)) {
+                return personal.canSpawnAnimal(animalId);
+            }
+        }
+
+        if (global != null && global.isAnimalSpawnControlEnabled()) {
+            if (global.isAnimalExists(animalId)) {
+                return global.canSpawnAnimal(animalId);
+            }
         }
 
         return true;

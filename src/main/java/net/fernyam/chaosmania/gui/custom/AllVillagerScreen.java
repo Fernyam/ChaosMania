@@ -1,11 +1,12 @@
 package net.fernyam.chaosmania.gui.custom;
 
-import net.fernyam.chaosmania.data.JSONSettingManager;
+import net.fernyam.chaosmania.data.settings.SettingsManager;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.npc.VillagerProfession;
+
 import java.util.Collection;
 import java.util.stream.Collectors;
 
@@ -27,7 +28,6 @@ public class AllVillagerScreen extends BaseSelectionScreen<VillagerProfession> {
                 .filter(profession -> {
                     ResourceLocation id = BuiltInRegistries.VILLAGER_PROFESSION.getKey(profession);
                     String path = id.getPath();
-                    // Исключаем безработного (none) и бездельника (nitwit)
                     return !path.equals("nitwit") && !path.equals("none");
                 })
                 .collect(Collectors.toList());
@@ -45,7 +45,6 @@ public class AllVillagerScreen extends BaseSelectionScreen<VillagerProfession> {
         Component translated = Component.translatable(translationKey);
         String result = translated.getString();
 
-        // Если перевод не найден, используем форматированный path
         if (result.equals(translationKey)) {
             String path = id.getPath();
             result = path.substring(0, 1).toUpperCase() + path.substring(1).replace("_", " ");
@@ -55,18 +54,32 @@ public class AllVillagerScreen extends BaseSelectionScreen<VillagerProfession> {
 
     @Override
     protected void addElementToPlayer(VillagerProfession profession) {
-        JSONSettingManager.addVillagerProfession(player.getUuid(), profession);
+        var settings = SettingsManager.getVillagerSettings(player.getUuid());
+        if (settings != null) {
+            String id = getElementId(profession);
+            if (!settings.isProfessionExists(id)) {
+                settings.addProfession(id);
+                SettingsManager.saveVillagerSettings(player.getUuid());
+            }
+        }
     }
 
     @Override
     protected void removeElementFromPlayer(VillagerProfession profession) {
-        JSONSettingManager.removeVillagerProfession(player.getUuid(), profession);
+        var settings = SettingsManager.getVillagerSettings(player.getUuid());
+        if (settings != null) {
+            String id = getElementId(profession);
+            if (settings.isProfessionExists(id)) {
+                settings.removeProfession(id);
+                SettingsManager.saveVillagerSettings(player.getUuid());
+            }
+        }
     }
 
     @Override
     protected boolean isElementInPlayerSettings(VillagerProfession profession) {
-        var settings = JSONSettingManager.getSettings(player.getUuid());
-        return settings != null && settings.isVillagerProfessionExists(profession);
+        var settings = SettingsManager.getVillagerSettings(player.getUuid());
+        return settings != null && settings.isProfessionExists(getElementId(profession));
     }
 
     @Override
@@ -76,13 +89,11 @@ public class AllVillagerScreen extends BaseSelectionScreen<VillagerProfession> {
 
     @Override
     protected boolean isSpecialIcon() {
-        return true; // У жителей нет иконки предмета, только текст
+        return true;
     }
 
     @Override
     protected void renderExtra(GuiGraphics gui, int left, int top, int width, int height, VillagerProfession profession) {
-        // Для жителей ничего не рисуем (только текст)
-        // При желании можно нарисовать иконку жителя
         gui.drawString(minecraft.font, "👤", left + 8, top + 18, 0xAAAAAA, false);
     }
 }

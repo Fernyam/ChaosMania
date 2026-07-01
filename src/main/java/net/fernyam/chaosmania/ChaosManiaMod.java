@@ -3,6 +3,7 @@ package net.fernyam.chaosmania;
 import net.fernyam.chaosmania.client.ClientInputHandler;
 import net.fernyam.chaosmania.client.KeyBindings;
 import net.fernyam.chaosmania.data.JSONSettingManager;
+import net.fernyam.chaosmania.data.settings.SettingsManager;
 import net.fernyam.chaosmania.event.blockEvent.BlockBreakEvent;
 import net.fernyam.chaosmania.event.blockEvent.BlockPlaceEvent;
 import net.fernyam.chaosmania.event.itemEvent.ItemDropsEvent;
@@ -10,6 +11,7 @@ import net.fernyam.chaosmania.event.itemEvent.ItemPickupEvent;
 import net.fernyam.chaosmania.event.PlantingSeedsEvent;
 import net.fernyam.chaosmania.event.VillagerTradingEvent;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
@@ -60,21 +62,29 @@ public class ChaosManiaMod {
 
     // ← Добавьте аннотацию @SubscribeEvent
     @SubscribeEvent
-    public void onServerStarting(ServerStartingEvent event) {
-        LOGGER.info("ChaosMania сервер инициализирован");
+    public void onServerStarting(ServerStartingEvent event)
+    {
+        SettingsManager.loadCache();
     }
 
     // ← Добавьте аннотацию @SubscribeEvent
     @SubscribeEvent
     public void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
+
         JSONSettingManager.createJSON();
+
+        Player player = event.getEntity();
+        String uuid = player.getStringUUID();
+        String name = player.getName().getString();
+
+        SettingsManager.addNewPlayer(name, uuid);
     }
 
     // ← Добавьте аннотацию @SubscribeEvent
     @SubscribeEvent
     public void onEntityJoinLevel(EntityJoinLevelEvent event) {
         if (!event.getLevel().isClientSide() && event.getEntity() instanceof ServerPlayer player) {
-            JSONSettingManager.addNewPlayer(player.getName().getString(), player.getUUID());
+            JSONSettingManager.addNewPlayer(player.getName().getString(), player.getUUID().toString());
         }
     }
 }

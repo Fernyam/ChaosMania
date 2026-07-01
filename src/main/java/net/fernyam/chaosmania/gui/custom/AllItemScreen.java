@@ -1,6 +1,6 @@
 package net.fernyam.chaosmania.gui.custom;
 
-import net.fernyam.chaosmania.data.JSONSettingManager;
+import net.fernyam.chaosmania.data.settings.SettingsManager;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -8,14 +8,15 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+
 import java.util.Collection;
 import java.util.stream.Collectors;
 
 public class AllItemScreen extends BaseSelectionScreen<Item> {
 
     private enum DisplayType {
-        ITEMS,      // только обычные предметы
-        BLOCKS      // только блоки (BlockItem)
+        ITEMS,
+        BLOCKS
     }
 
     private DisplayType currentDisplayType = DisplayType.ITEMS;
@@ -34,20 +35,17 @@ public class AllItemScreen extends BaseSelectionScreen<Item> {
 
     @Override
     protected void init() {
-        // Сначала вызываем super.init() для создания базовых элементов
         super.init();
 
         int centerX = width / 2;
         int buttonY = height / 2 - 117 + 25 + 7;
         int buttonWidth = 45;
 
-        // Кнопка "Items" (обычные предметы)
         this.itemsButton = addRenderableWidget(Button.builder(
                 Component.literal("Items"),
                 button -> switchToItems()
         ).bounds(centerX - BACKGROUND_WIDTH / 2 - buttonWidth, buttonY, buttonWidth, BUTTON_HEIGHT).build());
 
-        // Кнопка "Blocks" (блоки)
         this.blocksButton = addRenderableWidget(Button.builder(
                 Component.literal("Blocks"),
                 button -> switchToBlocks()
@@ -80,12 +78,10 @@ public class AllItemScreen extends BaseSelectionScreen<Item> {
     @Override
     protected Collection<Item> getAllElements() {
         if (currentDisplayType == DisplayType.ITEMS) {
-            // Только обычные предметы (не блоки)
             return BuiltInRegistries.ITEM.stream()
                     .filter(item -> !(item instanceof BlockItem))
                     .collect(Collectors.toList());
         } else {
-            // Только блоки (BlockItem)
             return BuiltInRegistries.ITEM.stream()
                     .filter(item -> item instanceof BlockItem)
                     .collect(Collectors.toList());
@@ -104,17 +100,31 @@ public class AllItemScreen extends BaseSelectionScreen<Item> {
 
     @Override
     protected void addElementToPlayer(Item item) {
-        JSONSettingManager.toggleItemInList(player.getUuid(), item);
+        var settings = SettingsManager.getItemSettings(player.getUuid());
+        if (settings != null) {
+            String id = getElementId(item);
+            if (!settings.isItemExists(id)) {
+                settings.addItem(id);
+                SettingsManager.saveItemSettings(player.getUuid());
+            }
+        }
     }
 
     @Override
     protected void removeElementFromPlayer(Item item) {
-        JSONSettingManager.toggleItemInList(player.getUuid(), item);
+        var settings = SettingsManager.getItemSettings(player.getUuid());
+        if (settings != null) {
+            String id = getElementId(item);
+            if (settings.isItemExists(id)) {
+                settings.removeItem(id);
+                SettingsManager.saveItemSettings(player.getUuid());
+            }
+        }
     }
 
     @Override
     protected boolean isElementInPlayerSettings(Item item) {
-        var settings = JSONSettingManager.getSettings(player.getUuid());
+        var settings = SettingsManager.getItemSettings(player.getUuid());
         return settings != null && settings.isItemExists(getElementId(item));
     }
 
