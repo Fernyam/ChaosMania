@@ -21,6 +21,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.stream.Collectors;
 
 public class SettingsManager {
     public static final String ALL_PLAYER_UUID = "00000000-0000-0000-0000-000000000000";
@@ -382,6 +383,15 @@ public class SettingsManager {
 
     public static Set<String> getAllModPlayers() {
         return new HashSet<>(modCache.keySet());
+    }
+
+    public static Set<String> getPlayerModIds(String uuid) {
+        ModSettings settings = getModSettings(uuid);
+        if (settings == null) return new HashSet<>();
+
+        return settings.getMods().stream()
+                .map(ModSettings.ModEntry::getIdMod)
+                .collect(Collectors.toSet());
     }
 
 // ==================== Методы сохранения для конкретных типов ====================

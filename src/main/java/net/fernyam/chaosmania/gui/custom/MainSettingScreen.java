@@ -29,10 +29,10 @@ enum ButtonSelect {
     BlockSetting,
     ItemSetting,
     PlantingSeed,
-    TradingVillager
+    TradingVillager,
+    LoadingMod
 }
 
-// Класс для хранения информации об игроке
 class PlayerInfoData {
     private final String uuid;
     private final String name;
@@ -86,12 +86,14 @@ public class MainSettingScreen extends Screen {
     private List<ItemEntry> allItemsMasterList = new ArrayList<>();
     private List<ItemEntry> allSeedsMasterList = new ArrayList<>();
     private List<ProfessionVillagerEntry> allVillagersMasterList = new ArrayList<>();
+    private List<ModEntry> allModMasterList = new ArrayList<>();
 
     // Фильтры поиска
     private String currentBlockSearchFilter = "";
     private String currentItemSearchFilter = "";
     private String currentSeedsSearchFilter = "";
     private String currentVillagersSearchFilter = "";
+    private String currentModSearchFilter = "";
 
     // UI компоненты
     private ScrollingPlayerList playerListScroll;
@@ -99,6 +101,8 @@ public class MainSettingScreen extends Screen {
     private ScrollingItemList itemListScroll;
     private ScrollingSeedList seedListScroll;
     private ScrollingVillagerList villagerScroll;
+    private ScrollingModList modScroll;
+    private EditBox addModInModList;
     private EditBox searchAllSelectObj;
 
     private Button BlockButton;
@@ -106,6 +110,7 @@ public class MainSettingScreen extends Screen {
     private Button SpecialSettingButton;
     private Button SpecialPlantingSeedSettingButton;
     private Button SpecialVillagerTradingSettingButton;
+    private Button SpecialModLoadingSettingButton;
     private Button LogButton;
 
     private boolean IsActiveSpecialSettingButton;
@@ -372,6 +377,65 @@ public class MainSettingScreen extends Screen {
         }
     }
 
+    //===================== Методы для модов ===============
+
+    private List<ModEntry> filterModsBySearch(List<ModEntry> mods, String searchText) {
+        if (searchText == null || searchText.trim().isEmpty()) {
+            return new ArrayList<>(mods);
+        }
+
+        var query = SearchUtils.parseQuery(searchText);
+        if (query.isEmpty()) return new ArrayList<>(mods);
+
+        return mods.stream()
+                .filter(entry -> {
+                    String id = entry.getModId().toLowerCase();
+
+                    return id.contains(query.query);
+                })
+                .collect(Collectors.toList());
+    }
+
+    private void sortModsWithActiveFirst(List<ModEntry> mods) {
+        if (selectedPlayer == null) return;
+
+        var settings = getModSettings(selectedPlayer.getUuid());
+        if (settings == null) return;
+
+        SearchUtils.sortWithActiveFirst(
+                mods,
+                entry -> settings.isModExists(entry.getModId()),
+                ModEntry::getModId
+        );
+    }
+
+    private void loadSelectModList() {
+        if (selectedPlayer == null) return;
+
+        var settings = getModSettings(selectedPlayer.getUuid());
+        if (settings == null) return;
+
+        Set<ModEntry> allModsSet = new HashSet<>();
+        for (var entry : settings.getMods()) {
+
+            var mod = entry.getIdMod();
+            allModsSet.add(new ModEntry(mod));
+
+        }
+
+        allModMasterList = new ArrayList<>(allModsSet);
+        sortModsWithActiveFirst(allModMasterList);
+        updateModListWithFilter();
+    }
+
+    private void updateModListWithFilter() {
+        if (modScroll != null && allModMasterList != null) {
+            List<ModEntry> filtered = filterModsBySearch(allModMasterList, currentModSearchFilter);
+            sortModsWithActiveFirst(filtered);
+            modScroll.updateEntries(filtered);
+        }
+    }
+
     // ==================== Общие методы ====================
 
     private List<PlayerInfoData> getOnlinePlayers() {
@@ -505,6 +569,7 @@ public class MainSettingScreen extends Screen {
         uuids.addAll(SettingsManager.getAllItemPlayers());
         uuids.addAll(SettingsManager.getAllSeedPlayers());
         uuids.addAll(SettingsManager.getAllVillagerPlayers());
+        uuids.addAll(SettingsManager.getAllModPlayers());
         return uuids;
     }
 
@@ -629,6 +694,15 @@ public class MainSettingScreen extends Screen {
                     init();
                 }
         ).bounds(startX + (buttonWidth + BUTTON_SPACING) * 2, startY + (BUTTON_HEIGHT + 5) * 2, buttonWidth, BUTTON_HEIGHT).build();
+
+        SpecialModLoadingSettingButton = Button.builder(
+                Component.literal("Настройка модов"),
+                button -> {
+                    selectButton = ButtonSelect.LoadingMod;
+                    IsActiveSpecialSettingButton = false;
+                    init();
+                }
+        ).bounds(startX + (buttonWidth + BUTTON_SPACING) * 2, startY + (BUTTON_HEIGHT + 5) * 3, buttonWidth, BUTTON_HEIGHT).build();
     }
 
     private void addSpecialButtons() {
@@ -637,6 +711,9 @@ public class MainSettingScreen extends Screen {
         }
         if (SpecialVillagerTradingSettingButton != null) {
             this.addRenderableWidget(SpecialVillagerTradingSettingButton);
+        }
+        if (SpecialModLoadingSettingButton != null) {
+            this.addRenderableWidget(SpecialModLoadingSettingButton);
         }
     }
 
@@ -659,6 +736,7 @@ public class MainSettingScreen extends Screen {
         this.itemListScroll = new ScrollingItemList(this, scrollX, scrollY, scrollWidth, scrollHeight);
         this.seedListScroll = new ScrollingSeedList(this, scrollX, scrollY, scrollWidth, scrollHeight);
         this.villagerScroll = new ScrollingVillagerList(this, scrollX, scrollY, scrollWidth, scrollHeight);
+        this.modScroll = new ScrollingModList(this, scrollX, scrollY, scrollWidth, scrollHeight);
     }
 
     private void createSearchBox() {
@@ -683,6 +761,7 @@ public class MainSettingScreen extends Screen {
             case ItemSetting -> setupItemMode(buttonX, buttonY, btnWidth, btnHeight);
             case PlantingSeed -> setupSeedMode(buttonX, buttonY, btnWidth, btnHeight);
             case TradingVillager -> setupVillagerMode(buttonX, buttonY, btnWidth, btnHeight);
+            case LoadingMod -> setupModMode(buttonX , buttonY , btnWidth, btnHeight);
         }
 
         ChaosManiaMod.LOGGER.info(selectButton.toString());
@@ -807,6 +886,54 @@ public class MainSettingScreen extends Screen {
         this.addRenderableWidget(villagerScroll);
     }
 
+    private void setupModMode(int buttonX, int buttonY, int btnWidth, int btnHeight) {
+        loadSelectModList();
+
+        searchAllSelectObj.setResponder(searchText -> {
+            currentModSearchFilter = searchText;
+            updateModListWithFilter();
+        });
+
+        addModInModList = new EditBox(
+                getFontRender(),
+                getWidth() / 2 + 105,
+                getHeight() / 2 - 50,
+                90,
+                16,
+                Component.literal("Add Mod"));
+
+        if(selectedPlayer != null)
+        {
+            addRenderableWidget(Button.builder(
+                    Component.literal("+"),
+                    button -> {
+                        var modText = addModInModList.getValue();
+                        if(!modText.isEmpty())
+                        {
+                            var settings = SettingsManager.getModSettings(selectedPlayer.getUuid());
+                            if (settings != null) {
+                                if (!settings.isModExists(modText)) {
+                                    settings.addMod(modText);
+                                    SettingsManager.saveModSettings(selectedPlayer.getUuid());
+                                }
+                            }
+                            init();
+                        }
+                        addModInModList.setValue("");
+
+                    }).bounds(buttonX + 92, buttonY, 16, 16).build());
+
+            this.addRenderableWidget(addModInModList);
+        }
+
+        addToggleButton(ToggleButtonType.MOD_LOADING, buttonX, buttonY + btnHeight + 5, btnWidth, BUTTON_HEIGHT + 3);
+
+        addCloseButton(buttonX, buttonY + (btnHeight + 5) * 3 + 10, btnWidth, BUTTON_HEIGHT);
+
+        this.addRenderableWidget(searchAllSelectObj);
+        this.addRenderableWidget(modScroll);
+    }
+
     // ==================== Вспомогательные методы для кнопок ====================
 
     private void addToggleButton(ToggleButtonType type, int x, int y, int width, int height) {
@@ -834,6 +961,9 @@ public class MainSettingScreen extends Screen {
         }
         if (SpecialVillagerTradingSettingButton != null) {
             SpecialVillagerTradingSettingButton.active = selectButton != ButtonSelect.TradingVillager;
+        }
+        if(SpecialModLoadingSettingButton != null) {
+            SpecialModLoadingSettingButton.active = selectButton != ButtonSelect.LoadingMod;
         }
     }
 
@@ -898,6 +1028,7 @@ public class MainSettingScreen extends Screen {
         currentItemSearchFilter = "";
         currentSeedsSearchFilter = "";
         currentVillagersSearchFilter = "";
+        currentModSearchFilter = "";
         if (searchAllSelectObj != null) {
             searchAllSelectObj.setValue("");
         }
@@ -1048,6 +1179,29 @@ public class MainSettingScreen extends Screen {
             }
 
             return result;
+        }
+    }
+
+    public static class ModEntry {
+        private final String modId;
+
+        ModEntry(String id) {
+            modId = id;
+        }
+
+        public String getModId() { return modId; }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) return true;
+            if (obj == null || getClass() != obj.getClass()) return false;
+            ModEntry that = (ModEntry) obj;
+            return Objects.equals(modId, that.modId);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(modId);
         }
     }
 }

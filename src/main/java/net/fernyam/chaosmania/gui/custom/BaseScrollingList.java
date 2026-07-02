@@ -1,8 +1,6 @@
 package net.fernyam.chaosmania.gui.custom;
 
 import net.minecraft.client.gui.components.ObjectSelectionList;
-import net.minecraft.client.gui.screens.Screen;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 import java.util.Objects;
@@ -16,6 +14,13 @@ public abstract class BaseScrollingList<T, E extends ObjectSelectionList.Entry<E
         this.parent = parent;
         this.setX(x);
     }
+
+    public BaseScrollingList(MainSettingScreen parent, int x, int y, int width, int height, int slotHeight) {
+        super(Objects.requireNonNull(parent.getMinecraft()), width, height, y, slotHeight);
+        this.parent = parent;
+        this.setX(x);
+    }
+
 
     @Override
     public int getRowWidth() {

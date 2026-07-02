@@ -37,7 +37,11 @@ public enum ToggleButtonType {
 
     WANDERING_TRADER("Контроль торговли со странствующими",
             SettingsManager::toggleGlobalWanderingTraderTrade,
-            uuid -> getVillagerSettings(uuid).isWanderingTraderControlEnabled());
+            uuid -> getVillagerSettings(uuid).isWanderingTraderControlEnabled()),
+
+    MOD_LOADING("Контроль за модами",
+            SettingsManager::toggleGlobalModLoad,
+            uuid -> getModSettings(uuid).isModLoadControlEnabled());
 
     private final String displayName;
     private final Consumer<String> toggleAction;
