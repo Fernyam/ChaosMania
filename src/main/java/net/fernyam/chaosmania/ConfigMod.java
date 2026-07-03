@@ -6,9 +6,6 @@ import java.util.List;
 
 public class ConfigMod {
 
-
-
-
     public static final ModConfigSpec SPEC;
 
 

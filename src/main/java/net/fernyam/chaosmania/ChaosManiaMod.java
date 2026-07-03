@@ -2,16 +2,14 @@ package net.fernyam.chaosmania;
 
 import net.fernyam.chaosmania.client.ClientInputHandler;
 import net.fernyam.chaosmania.client.KeyBindings;
-import net.fernyam.chaosmania.data.JSONSettingManager;
 import net.fernyam.chaosmania.data.settings.SettingsManager;
+import net.fernyam.chaosmania.event.ModLoadEvent;
 import net.fernyam.chaosmania.event.blockEvent.BlockBreakEvent;
 import net.fernyam.chaosmania.event.blockEvent.BlockPlaceEvent;
 import net.fernyam.chaosmania.event.itemEvent.ItemDropsEvent;
 import net.fernyam.chaosmania.event.itemEvent.ItemPickupEvent;
 import net.fernyam.chaosmania.event.PlantingSeedsEvent;
 import net.fernyam.chaosmania.event.VillagerTradingEvent;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Player;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
@@ -31,8 +29,7 @@ public class ChaosManiaMod {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     public ChaosManiaMod(IEventBus modEventBus, ModContainer modContainer) {
-        // Регистрируем THIS класс для событий на NeoForge.EVENT_BUS
-        NeoForge.EVENT_BUS.register(this);  // ← Теперь работает, так как есть @SubscribeEvent методы
+        NeoForge.EVENT_BUS.register(this);
 
         // Клиент
         modEventBus.addListener(KeyBindings::registerBindings);
@@ -48,12 +45,14 @@ public class ChaosManiaMod {
         NeoForge.EVENT_BUS.addListener(this::onPlayerLoggedIn);
         NeoForge.EVENT_BUS.addListener(this::onEntityJoinLevel);
 
+        NeoForge.EVENT_BUS.addListener(ModLoadEvent::onPlayerLoggedIn);
+
         modEventBus.addListener(this::onClientSetup);
         modEventBus.addListener(this::commonSetup);
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
-        JSONSettingManager.getAllSettings();
+        //JSONSettingManager.getAllSettings();
     }
 
     private void onClientSetup(FMLClientSetupEvent event) {
@@ -71,20 +70,20 @@ public class ChaosManiaMod {
     @SubscribeEvent
     public void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
 
-        JSONSettingManager.createJSON();
-
-        Player player = event.getEntity();
-        String uuid = player.getStringUUID();
-        String name = player.getName().getString();
-
-        SettingsManager.addNewPlayer(name, uuid);
+//        JSONSettingManager.createJSON();
+//
+//        Player player = event.getEntity();
+//        String uuid = player.getStringUUID();
+//        String name = player.getName().getString();
+//
+//        SettingsManager.addNewPlayer(name, uuid);
     }
 
     // ← Добавьте аннотацию @SubscribeEvent
     @SubscribeEvent
     public void onEntityJoinLevel(EntityJoinLevelEvent event) {
-        if (!event.getLevel().isClientSide() && event.getEntity() instanceof ServerPlayer player) {
-            JSONSettingManager.addNewPlayer(player.getName().getString(), player.getUUID().toString());
-        }
+//        if (!event.getLevel().isClientSide() && event.getEntity() instanceof ServerPlayer player) {
+//            JSONSettingManager.addNewPlayer(player.getName().getString(), player.getUUID().toString());
+//        }
     }
 }
