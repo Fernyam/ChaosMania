@@ -10,6 +10,7 @@ import net.fernyam.chaosmania.event.itemEvent.ItemDropsEvent;
 import net.fernyam.chaosmania.event.itemEvent.ItemPickupEvent;
 import net.fernyam.chaosmania.event.PlantingSeedsEvent;
 import net.fernyam.chaosmania.event.VillagerTradingEvent;
+import net.minecraft.world.entity.player.Player;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
@@ -72,11 +73,11 @@ public class ChaosManiaMod {
 
 //        JSONSettingManager.createJSON();
 //
-//        Player player = event.getEntity();
-//        String uuid = player.getStringUUID();
-//        String name = player.getName().getString();
-//
-//        SettingsManager.addNewPlayer(name, uuid);
+        Player player = event.getEntity();
+        String uuid = player.getStringUUID();
+        String name = player.getName().getString();
+
+        SettingsManager.addNewPlayer(name, uuid);
     }
 
     // ← Добавьте аннотацию @SubscribeEvent
