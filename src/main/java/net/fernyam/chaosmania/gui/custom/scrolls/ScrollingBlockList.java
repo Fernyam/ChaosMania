@@ -1,5 +1,7 @@
-package net.fernyam.chaosmania.gui.custom;
+package net.fernyam.chaosmania.gui.custom.scrolls;
 
+import net.fernyam.chaosmania.gui.custom.base.BaseScrollingList;
+import net.fernyam.chaosmania.gui.custom.MainSettingScreen;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.ObjectSelectionList;
@@ -12,12 +14,14 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
-import static net.fernyam.chaosmania.data.settings.SettingsManager.*;
+import static net.fernyam.chaosmania.util.SettingsHelper.*;
 
 public class ScrollingBlockList extends BaseScrollingList<MainSettingScreen.BlockEntry, ScrollingBlockList.BlockSlot> {
 
+    private static final int SLOT_HEIGHT = 65;
+
     public ScrollingBlockList(MainSettingScreen parent, int x, int y, int width, int height) {
-        super(parent, x, y, width, height);
+        super(parent, x, y, width, height , SLOT_HEIGHT);
     }
 
     @Override
@@ -33,6 +37,8 @@ public class ScrollingBlockList extends BaseScrollingList<MainSettingScreen.Bloc
         private final MainSettingScreen.BlockEntry entry;
         private final Button disablePlaceButton;
         private final Button disableBreakButton;
+        private final Button disableRightClickButton;
+        private final Button disableLeftClickButton;
 
         public BlockSlot(MainSettingScreen parent, MainSettingScreen.BlockEntry entry) {
             this.parent = parent;
@@ -64,6 +70,30 @@ public class ScrollingBlockList extends BaseScrollingList<MainSettingScreen.Bloc
                     ).bounds(0, 0, 20, 20)
                     .tooltip(Tooltip.create(Component.literal("Можно ли ломать блок")))
                     .build();
+
+            this.disableRightClickButton = Button.builder(
+                            Component.literal(uuid != null && canRightClickBlock(uuid, blockId) ? "✔" : "✖"),
+                            button -> {
+                                if (uuid != null) {
+                                    toggleBlockRightClick(uuid, blockId);
+                                    button.setMessage(Component.literal(canRightClickBlock(uuid, blockId) ? "✔" : "✖"));
+                                }
+                            }
+                    ).bounds(0, 0, 20, 20)
+                    .tooltip(Tooltip.create(Component.literal("Можно ли взаимодействовать ПКМ")))
+                    .build();
+
+            this.disableLeftClickButton = Button.builder(
+                            Component.literal(uuid != null && canLeftClickBlock(uuid, blockId) ? "✔" : "✖"),
+                            button -> {
+                                if (uuid != null) {
+                                    toggleBlockLeftClick(uuid, blockId);
+                                    button.setMessage(Component.literal(canLeftClickBlock(uuid, blockId) ? "✔" : "✖"));
+                                }
+                            }
+                    ).bounds(0, 0, 20, 20)
+                    .tooltip(Tooltip.create(Component.literal("Можно ли взаимодействовать ЛКМ")))
+                    .build();
         }
 
         @Override
@@ -76,41 +106,60 @@ public class ScrollingBlockList extends BaseScrollingList<MainSettingScreen.Bloc
                 guiGraphics.fill(left, top, left + width, top + height, 0x44FFFFFF);
             }
 
-            guiGraphics.renderItem(stack, left + 4, top + 14);
-            guiGraphics.renderItemDecorations(font, stack, left + 4, top + 14);
+
+            int iconSize = 16;
+            int iconY = top + (height - iconSize) / 2;
+            guiGraphics.renderItem(stack, left + 4, iconY);
+            guiGraphics.renderItemDecorations(font, stack, left + 4, iconY);
+
+
+            int textStartY = top + (height - 24) / 2;
 
             if (font.width(name) > width - 90) {
                 name = font.plainSubstrByWidth(name, width - 90) + "...";
             }
-            guiGraphics.drawString(font, name, left + 28, top + 11, 0xFFFFFF, false);
+            guiGraphics.drawString(font, name, left + 28, textStartY, 0xFFFFFF, false);
 
             ResourceLocation key = BuiltInRegistries.BLOCK.getKey(entry.getBlock());
             String idString = key.toString();
             if (font.width(idString) > width - 120) {
                 idString = font.plainSubstrByWidth(idString, width - 120) + "...";
             }
-            guiGraphics.drawString(font, idString, left + 28, top + 23, 0x888888, false);
+            guiGraphics.drawString(font, idString, left + 28, textStartY + 12, 0x888888, false);
+
 
             int buttonWidth = 20;
             int buttonHeight = 20;
             int buttonX = left + width - buttonWidth - 35;
-            int buttonY = top + (height - buttonHeight) / 2;
+
+            int groupHeight = 50;
+            int groupStartY = top + (height - groupHeight) / 2;
 
             disablePlaceButton.setX(buttonX);
-            disablePlaceButton.setY(buttonY);
+            disablePlaceButton.setY(groupStartY);
 
             disableBreakButton.setX(buttonX + 25);
-            disableBreakButton.setY(buttonY);
+            disableBreakButton.setY(groupStartY);
+
+            disableRightClickButton.setX(buttonX);
+            disableRightClickButton.setY(groupStartY + 25);
+
+            disableLeftClickButton.setX(buttonX + 25);
+            disableLeftClickButton.setY(groupStartY + 25);
 
             disablePlaceButton.render(guiGraphics, mouseX, mouseY, partialTick);
             disableBreakButton.render(guiGraphics, mouseX, mouseY, partialTick);
+            disableRightClickButton.render(guiGraphics, mouseX, mouseY, partialTick);
+            disableLeftClickButton.render(guiGraphics, mouseX, mouseY, partialTick);
         }
 
-        @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            return disablePlaceButton.mouseClicked(mouseX, mouseY, button) ||
-                    disableBreakButton.mouseClicked(mouseX, mouseY, button);
-        }
+//        @Override
+//        public boolean mouseClicked(double mouseX, double mouseY, int button) {
+//            return disablePlaceButton.mouseClicked(mouseX, mouseY, button) ||
+//                    disableBreakButton.mouseClicked(mouseX, mouseY, button) ||
+//                    disableRightClickButton.mouseClicked(mouseX, mouseY, button) ||
+//                    disableLeftClickButton.mouseClicked(mouseX, mouseY, button);
+//        }
 
         @Override
         public @NotNull Component getNarration() {

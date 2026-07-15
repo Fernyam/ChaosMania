@@ -1,5 +1,7 @@
-package net.fernyam.chaosmania.gui.custom;
+package net.fernyam.chaosmania.gui.custom.scrolls;
 
+import net.fernyam.chaosmania.gui.custom.base.BaseScrollingList;
+import net.fernyam.chaosmania.gui.custom.MainSettingScreen;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.ObjectSelectionList;
@@ -11,7 +13,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
-import static net.fernyam.chaosmania.data.settings.SettingsManager.*;
+import static net.fernyam.chaosmania.util.SettingsHelper.*;
 
 public class ScrollingVillagerList extends BaseScrollingList<MainSettingScreen.ProfessionVillagerEntry, ScrollingVillagerList.VillagerSlot> {
 
@@ -83,10 +85,10 @@ public class ScrollingVillagerList extends BaseScrollingList<MainSettingScreen.P
             disableTradeButton.render(guiGraphics, mouseX, mouseY, partialTick);
         }
 
-        @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            return disableTradeButton.mouseClicked(mouseX, mouseY, button);
-        }
+//        @Override
+//        public boolean mouseClicked(double mouseX, double mouseY, int button) {
+//            return disableTradeButton.mouseClicked(mouseX, mouseY, button);
+//        }
 
         @Override
         public @NotNull Component getNarration() {

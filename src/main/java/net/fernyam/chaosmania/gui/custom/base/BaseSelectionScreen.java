@@ -1,5 +1,7 @@
-package net.fernyam.chaosmania.gui.custom;
+package net.fernyam.chaosmania.gui.custom.base;
 
+import net.fernyam.chaosmania.gui.custom.MainSettingScreen;
+import net.fernyam.chaosmania.gui.PlayerInfoData;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;

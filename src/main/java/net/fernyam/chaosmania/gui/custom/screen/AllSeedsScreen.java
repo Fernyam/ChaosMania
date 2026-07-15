@@ -1,6 +1,9 @@
-package net.fernyam.chaosmania.gui.custom;
+package net.fernyam.chaosmania.gui.custom.screen;
 
 import net.fernyam.chaosmania.data.settings.SettingsManager;
+import net.fernyam.chaosmania.gui.custom.base.BaseSelectionScreen;
+import net.fernyam.chaosmania.gui.custom.MainSettingScreen;
+import net.fernyam.chaosmania.gui.PlayerInfoData;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -42,11 +45,11 @@ public class AllSeedsScreen extends BaseSelectionScreen<Item> {
             }
         });
 
-        BuiltInRegistries.ITEM.getTag(MINECRAFT_FLOWERS).ifPresent(tag -> {
-            for (Holder<Item> holder : tag) {
-                seedsSet.add(holder.value());
-            }
-        });
+//        BuiltInRegistries.ITEM.getTag(MINECRAFT_FLOWERS).ifPresent(tag -> {
+//            for (Holder<Item> holder : tag) {
+//                seedsSet.add(holder.value());
+//            }
+//        });
 
         return seedsSet;
     }

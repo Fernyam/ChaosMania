@@ -3,6 +3,9 @@ package net.fernyam.chaosmania.gui.custom;
 import net.fernyam.chaosmania.ChaosManiaMod;
 import net.fernyam.chaosmania.data.settings.*;
 import net.fernyam.chaosmania.data.settings.custom.*;
+import net.fernyam.chaosmania.gui.PlayerInfoData;
+import net.fernyam.chaosmania.gui.custom.screen.*;
+import net.fernyam.chaosmania.gui.custom.scrolls.*;
 import net.fernyam.chaosmania.gui.util.SearchUtils;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -13,6 +16,7 @@ import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.npc.VillagerProfession;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -28,58 +32,35 @@ import static net.fernyam.chaosmania.data.settings.SettingsManager.*;
 enum ButtonSelect {
     BlockSetting,
     ItemSetting,
-    PlantingSeed,
-    TradingVillager,
-    LoadingMod
+    SeedPlanting,
+    VillagerTrading,
+    ModLoading,
+    MobSetting
 }
 
-class PlayerInfoData {
-    private final String uuid;
-    private final String name;
-    private final boolean isAllPlayers;
-
-    public static final PlayerInfoData ALL_PLAYERS = new PlayerInfoData(ALL_PLAYER_UUID, "§6§l[ВСЕМ]", true);
-
-    public PlayerInfoData(String uuid, String name) {
-        this(uuid, name, false);
-    }
-
-    private PlayerInfoData(String uuid, String name, boolean isAllPlayers) {
-        this.uuid = uuid;
-        this.name = name;
-        this.isAllPlayers = isAllPlayers;
-    }
-
-    public String getUuid() { return uuid; }
-    public String getName() { return name; }
-    public boolean isAllPlayers() { return isAllPlayers; }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) return true;
-        if (obj == null || getClass() != obj.getClass()) return false;
-        PlayerInfoData that = (PlayerInfoData) obj;
-        return Objects.equals(uuid, that.uuid);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(uuid);
-    }
-}
 
 public class MainSettingScreen extends Screen {
 
     private static final ResourceLocation BACKGROUND_TEXTURE = ResourceLocation.fromNamespaceAndPath(MOD_ID, "textures/gui/bg.png");
 
-    private static PlayerInfoData selectedPlayer;
-    private static ButtonSelect selectButton;
-
     private static final int BUTTON_HEIGHT = 20;
     private static final int BUTTON_SPACING = 5;
 
-    private static final int backgroundWidth = 216;
-    private static final int backgroundHeight = 230;
+    private static final int DefaultObjScrollBackgroundWidth = 216;
+    private static final int DefaultObjScrollBackgroundHeight = 230;
+
+    private static final int DefaultToolBackgroundWidth = 150;
+    private static final int DefaultToolBackgroundHeight = 180;
+
+    private static int objScrollBackgroundWidth = DefaultObjScrollBackgroundWidth;
+    private static int objScrollBackgroundHeight = DefaultObjScrollBackgroundHeight;
+
+    private static int toolBackgroundWidth = DefaultToolBackgroundWidth;
+    private static int toolBackgroundHeight = DefaultToolBackgroundHeight;
+
+
+    public static PlayerInfoData selectedPlayer;
+    private static ButtonSelect selectButton;
 
     // Кешированные списки
     private List<BlockEntry> allBlocksMasterList = new ArrayList<>();
@@ -87,6 +68,7 @@ public class MainSettingScreen extends Screen {
     private List<ItemEntry> allSeedsMasterList = new ArrayList<>();
     private List<ProfessionVillagerEntry> allVillagersMasterList = new ArrayList<>();
     private List<ModEntry> allModMasterList = new ArrayList<>();
+    private List<MobEntry> allMobMasterList = new ArrayList<>();
 
     // Фильтры поиска
     private String currentBlockSearchFilter = "";
@@ -94,14 +76,16 @@ public class MainSettingScreen extends Screen {
     private String currentSeedsSearchFilter = "";
     private String currentVillagersSearchFilter = "";
     private String currentModSearchFilter = "";
+    private String currentMobSearchFilter = "";
 
     // UI компоненты
     private ScrollingPlayerList playerListScroll;
     private ScrollingBlockList blockListScroll;
     private ScrollingItemList itemListScroll;
     private ScrollingSeedList seedListScroll;
-    private ScrollingVillagerList villagerScroll;
-    private ScrollingModList modScroll;
+    private ScrollingVillagerList villagerListScroll;
+    private ScrollingModList modListScroll;
+    private ScrollingMobList mobListScroll;
     private EditBox addModInModList;
     private EditBox searchAllSelectObj;
 
@@ -111,6 +95,7 @@ public class MainSettingScreen extends Screen {
     private Button SpecialPlantingSeedSettingButton;
     private Button SpecialVillagerTradingSettingButton;
     private Button SpecialModLoadingSettingButton;
+    private Button SpecialMobSettingButton;
     private Button LogButton;
 
     private boolean IsActiveSpecialSettingButton;
@@ -370,10 +355,10 @@ public class MainSettingScreen extends Screen {
     }
 
     private void updateVillagersListWithFilter() {
-        if (villagerScroll != null && allVillagersMasterList != null) {
+        if (villagerListScroll != null && allVillagersMasterList != null) {
             List<ProfessionVillagerEntry> filtered = filterVillagersBySearch(allVillagersMasterList, currentVillagersSearchFilter);
             sortVillagersWithActiveFirst(filtered);
-            villagerScroll.updateEntries(filtered);
+            villagerListScroll.updateEntries(filtered);
         }
     }
 
@@ -429,10 +414,74 @@ public class MainSettingScreen extends Screen {
     }
 
     private void updateModListWithFilter() {
-        if (modScroll != null && allModMasterList != null) {
+        if (modListScroll != null && allModMasterList != null) {
             List<ModEntry> filtered = filterModsBySearch(allModMasterList, currentModSearchFilter);
             sortModsWithActiveFirst(filtered);
-            modScroll.updateEntries(filtered);
+            modListScroll.updateEntries(filtered);
+        }
+    }
+
+    // ==================== Методы для мобов ================
+
+    private List<MobEntry> filterMobsBySearch(List<MobEntry> mobs, String searchText) {
+        if (searchText == null || searchText.trim().isEmpty()) {
+            return new ArrayList<>(mobs);
+        }
+
+        var query = SearchUtils.parseQuery(searchText);
+        if (query.isEmpty()) return new ArrayList<>(mobs);
+
+        return mobs.stream()
+                .filter(entry -> {
+                    String name = entry.getMobName().toLowerCase();
+                    String id = entry.getMobId().toLowerCase();
+
+                    return switch (query.type) {
+                        case NAME -> name.contains(query.query);
+                        case ID -> id.contains(query.query);
+                        case MOD_ID -> id.split(":")[0].contains(query.query);
+                    };
+                })
+                .collect(Collectors.toList());
+    }
+
+    private void sortMobsWithActiveFirst(List<MobEntry> mobs) {
+        if (selectedPlayer == null) return;
+        var settings = getMobSettings(selectedPlayer.getUuid());
+        if (settings == null) return;
+
+        SearchUtils.sortWithActiveFirst(
+                mobs,
+                entry -> settings.isMobExists(entry.getMobId()),
+                MobEntry::getMobName
+        );
+    }
+
+    private void loadSelectMobList() {
+        if (selectedPlayer == null) return;
+
+        var settings = getMobSettings(selectedPlayer.getUuid());
+        if (settings == null) return;
+
+        Set<MobEntry> allMobsSet = new HashSet<>();
+        for (var entry : settings.getMobs()) {
+            ResourceLocation location = ResourceLocation.tryParse(entry.getIdMob());
+            if (location != null && BuiltInRegistries.ENTITY_TYPE.containsKey(location)) {
+                var entityType = BuiltInRegistries.ENTITY_TYPE.get(location);
+                allMobsSet.add(new MobEntry(entityType));
+            }
+        }
+
+        allMobMasterList = new ArrayList<>(allMobsSet);
+        sortMobsWithActiveFirst(allMobMasterList);
+        updateMobListWithFilter();
+    }
+
+    private void updateMobListWithFilter() {
+        if (mobListScroll != null && allMobMasterList != null) {
+            List<MobEntry> filtered = filterMobsBySearch(allMobMasterList, currentMobSearchFilter);
+            sortMobsWithActiveFirst(filtered);
+            mobListScroll.updateEntries(filtered);
         }
     }
 
@@ -496,8 +545,9 @@ public class MainSettingScreen extends Screen {
         Set<String> itemPlayers = new HashSet<>(SettingsManager.getAllItemPlayers());
         Set<String> seedPlayers = new HashSet<>(SettingsManager.getAllSeedPlayers());
         Set<String> villagerPlayers = new HashSet<>(SettingsManager.getAllVillagerPlayers());
-        Set<String> animalPlayers = new HashSet<>(SettingsManager.getAllAnimalPlayers());
+        Set<String> animalPlayers = new HashSet<>(SettingsManager.getAllMobPlayers());
         Set<String> modPlayers = new HashSet<>(SettingsManager.getAllModPlayers());
+        Set<String> mobPlayers = new HashSet<>(SettingsManager.getAllMobPlayers());
 
         // Объединяем все UUID в один набор
         Set<String> allUuids = new HashSet<>();
@@ -549,8 +599,8 @@ public class MainSettingScreen extends Screen {
 
             // Проверяем животных
             if (!animalPlayers.contains(uuid)) {
-                AnimalSettings animalSettings = new AnimalSettings(uuid, name);
-                SettingsManager.addAnimalPlayer(uuid, animalSettings);
+                MobSettings mobSettings = new MobSettings(uuid, name);
+                SettingsManager.addMobPlayer(uuid, mobSettings);
                 ChaosManiaMod.LOGGER.debug("Added missing player {} to animal settings", uuid);
             }
 
@@ -559,6 +609,12 @@ public class MainSettingScreen extends Screen {
                 ModSettings modSettings = new ModSettings(uuid, name);
                 SettingsManager.addModPlayer(uuid, modSettings);
                 ChaosManiaMod.LOGGER.debug("Added missing player {} to mod settings", uuid);
+            }
+
+            if(!mobPlayers.contains(uuid)) {
+                MobSettings mobSettings = new MobSettings(uuid , name);
+                SettingsManager.addMobPlayer(uuid , mobSettings);
+                ChaosManiaMod.LOGGER.debug("Added missing player {} to mob setting" , uuid);
             }
         }
     }
@@ -570,6 +626,7 @@ public class MainSettingScreen extends Screen {
         uuids.addAll(SettingsManager.getAllSeedPlayers());
         uuids.addAll(SettingsManager.getAllVillagerPlayers());
         uuids.addAll(SettingsManager.getAllModPlayers());
+        uuids.addAll(SettingsManager.getAllMobPlayers());
         return uuids;
     }
 
@@ -598,6 +655,16 @@ public class MainSettingScreen extends Screen {
             return villagerSettings.getNamePlayer();
         }
 
+        var modSettings = SettingsManager.getModSettings(uuid);
+        if(modSettings != null && modSettings.getNamePlayer() != null) {
+            return modSettings.getNamePlayer();
+        }
+
+        var mobSettings = SettingsManager.getMobSettings(uuid);
+        if(mobSettings != null && mobSettings.getNamePlayer() != null) {
+            return mobSettings.getNamePlayer();
+        }
+
         // Если нигде нет - возвращаем UUID
         return uuid;
     }
@@ -613,7 +680,7 @@ public class MainSettingScreen extends Screen {
     // ==================== Создание UI ====================
 
     @Override
-    protected void init() {
+    public void init() {
         this.clearWidgets();
         super.init();
 
@@ -680,7 +747,7 @@ public class MainSettingScreen extends Screen {
         SpecialPlantingSeedSettingButton = Button.builder(
                 Component.literal("Посадка семян"),
                 button -> {
-                    selectButton = ButtonSelect.PlantingSeed;
+                    selectButton = ButtonSelect.SeedPlanting;
                     IsActiveSpecialSettingButton = false;
                     init();
                 }
@@ -689,7 +756,7 @@ public class MainSettingScreen extends Screen {
         SpecialVillagerTradingSettingButton = Button.builder(
                 Component.literal("Торговля с жителями"),
                 button -> {
-                    selectButton = ButtonSelect.TradingVillager;
+                    selectButton = ButtonSelect.VillagerTrading;
                     IsActiveSpecialSettingButton = false;
                     init();
                 }
@@ -698,11 +765,20 @@ public class MainSettingScreen extends Screen {
         SpecialModLoadingSettingButton = Button.builder(
                 Component.literal("Настройка модов"),
                 button -> {
-                    selectButton = ButtonSelect.LoadingMod;
+                    selectButton = ButtonSelect.ModLoading;
                     IsActiveSpecialSettingButton = false;
                     init();
                 }
         ).bounds(startX + (buttonWidth + BUTTON_SPACING) * 2, startY + (BUTTON_HEIGHT + 5) * 3, buttonWidth, BUTTON_HEIGHT).build();
+
+        SpecialMobSettingButton = Button.builder(
+                Component.literal("Настройка мобов"),
+                button -> {
+                    selectButton = ButtonSelect.MobSetting;
+                    IsActiveSpecialSettingButton = false;
+                    init();
+                }
+        ).bounds(startX + (buttonWidth + BUTTON_SPACING) * 2, startY + (BUTTON_HEIGHT + 5) * 4, buttonWidth, BUTTON_HEIGHT).build();
     }
 
     private void addSpecialButtons() {
@@ -714,6 +790,9 @@ public class MainSettingScreen extends Screen {
         }
         if (SpecialModLoadingSettingButton != null) {
             this.addRenderableWidget(SpecialModLoadingSettingButton);
+        }
+        if (SpecialMobSettingButton != null) {
+            this.addRenderableWidget(SpecialMobSettingButton);
         }
     }
 
@@ -729,14 +808,15 @@ public class MainSettingScreen extends Screen {
 
         int scrollX = getWidth() / 2 - 102;
         int scrollY = getHeight() / 2 - 71;
-        int scrollWidth = this.backgroundWidth - 15;
-        int scrollHeight = this.backgroundHeight - 40;
+        int scrollWidth = this.objScrollBackgroundWidth - 15;
+        int scrollHeight = this.objScrollBackgroundHeight - 40;
 
         this.blockListScroll = new ScrollingBlockList(this, scrollX, scrollY, scrollWidth, scrollHeight);
         this.itemListScroll = new ScrollingItemList(this, scrollX, scrollY, scrollWidth, scrollHeight);
         this.seedListScroll = new ScrollingSeedList(this, scrollX, scrollY, scrollWidth, scrollHeight);
-        this.villagerScroll = new ScrollingVillagerList(this, scrollX, scrollY, scrollWidth, scrollHeight);
-        this.modScroll = new ScrollingModList(this, scrollX, scrollY, scrollWidth, scrollHeight);
+        this.villagerListScroll = new ScrollingVillagerList(this, scrollX, scrollY, scrollWidth, scrollHeight);
+        this.modListScroll = new ScrollingModList(this, scrollX, scrollY, scrollWidth, scrollHeight);
+        this.mobListScroll = new ScrollingMobList(this, scrollX, scrollY, scrollWidth, scrollHeight);
     }
 
     private void createSearchBox() {
@@ -744,7 +824,7 @@ public class MainSettingScreen extends Screen {
                 getFontRender(),
                 getWidth() / 2 - 100,
                 getHeight() / 2 - 90,
-                this.backgroundWidth - 19,
+                this.objScrollBackgroundWidth - 19,
                 17,
                 Component.literal("Поиск... (:id | @modid)")
         );
@@ -756,12 +836,18 @@ public class MainSettingScreen extends Screen {
         int btnWidth = buttonWidth - 37;
         int btnHeight = BUTTON_HEIGHT + 8;
 
+        objScrollBackgroundHeight = DefaultObjScrollBackgroundHeight;
+        objScrollBackgroundWidth = DefaultObjScrollBackgroundWidth;
+        toolBackgroundHeight = DefaultToolBackgroundHeight;
+        toolBackgroundWidth = DefaultToolBackgroundWidth;
+
         switch (selectButton) {
-            case BlockSetting -> setupBlockMode(buttonX, buttonY, btnWidth, btnHeight);
+            case BlockSetting -> setupBlockMode(buttonX, buttonY, btnWidth, BUTTON_HEIGHT + 3);
             case ItemSetting -> setupItemMode(buttonX, buttonY, btnWidth, btnHeight);
-            case PlantingSeed -> setupSeedMode(buttonX, buttonY, btnWidth, btnHeight);
-            case TradingVillager -> setupVillagerMode(buttonX, buttonY, btnWidth, btnHeight);
-            case LoadingMod -> setupModMode(buttonX , buttonY , btnWidth, btnHeight);
+            case SeedPlanting -> setupSeedMode(buttonX, buttonY, btnWidth, btnHeight);
+            case VillagerTrading -> setupVillagerMode(buttonX, buttonY, btnWidth, btnHeight);
+            case ModLoading -> setupModMode(buttonX , buttonY , btnWidth, btnHeight);
+            case MobSetting -> setupMobMode(buttonX , buttonY , btnWidth, btnHeight);
         }
 
         ChaosManiaMod.LOGGER.info(selectButton.toString());
@@ -772,6 +858,8 @@ public class MainSettingScreen extends Screen {
 
     private void setupBlockMode(int buttonX, int buttonY, int btnWidth, int btnHeight) {
         loadSelectBlockList();
+
+        toolBackgroundHeight += 10;
 
         searchAllSelectObj.setResponder(searchText -> {
             currentBlockSearchFilter = searchText;
@@ -791,10 +879,12 @@ public class MainSettingScreen extends Screen {
         }
 
         // Добавляем toggle кнопки через Enum
-        addToggleButton(ToggleButtonType.BLOCK_PLACE, buttonX, buttonY + btnHeight + 5, btnWidth, BUTTON_HEIGHT + 3);
-        addToggleButton(ToggleButtonType.BLOCK_BREAK, buttonX, buttonY + (btnHeight + 5) * 2, btnWidth, BUTTON_HEIGHT + 3);
+        addToggleButton(ToggleButtonType.BLOCK_PLACE, buttonX, buttonY + btnHeight + 2, btnWidth, BUTTON_HEIGHT + 3);
+        addToggleButton(ToggleButtonType.BLOCK_BREAK, buttonX, buttonY + (btnHeight + 2) * 2, btnWidth, BUTTON_HEIGHT + 3);
+        addToggleButton(ToggleButtonType.BLOCK_RIGHT_CLICK, buttonX, buttonY + (btnHeight + 2) * 3, btnWidth, BUTTON_HEIGHT + 3);
+        addToggleButton(ToggleButtonType.BLOCK_LEFT_CLICK, buttonX, buttonY + (btnHeight + 2) * 4, btnWidth, BUTTON_HEIGHT + 3);
 
-        addCloseButton(buttonX, buttonY + (btnHeight + 5) * 3 + 10, btnWidth, BUTTON_HEIGHT);
+        addCloseButton(buttonX, buttonY + (btnHeight + 5) * 4 + 20, btnWidth, BUTTON_HEIGHT);
 
         this.addRenderableWidget(searchAllSelectObj);
         this.addRenderableWidget(blockListScroll);
@@ -822,6 +912,7 @@ public class MainSettingScreen extends Screen {
 
         addToggleButton(ToggleButtonType.ITEM_DROP, buttonX, buttonY + btnHeight + 5, btnWidth, BUTTON_HEIGHT + 3);
         addToggleButton(ToggleButtonType.ITEM_PICKUP, buttonX, buttonY + (btnHeight + 5) * 2, btnWidth, BUTTON_HEIGHT + 3);
+
 
         addCloseButton(buttonX, buttonY + (btnHeight + 5) * 3 + 10, btnWidth, BUTTON_HEIGHT);
 
@@ -883,7 +974,7 @@ public class MainSettingScreen extends Screen {
         addCloseButton(buttonX, buttonY + (btnHeight + 5) * 3 + 10, btnWidth, BUTTON_HEIGHT);
 
         this.addRenderableWidget(searchAllSelectObj);
-        this.addRenderableWidget(villagerScroll);
+        this.addRenderableWidget(villagerListScroll);
     }
 
     private void setupModMode(int buttonX, int buttonY, int btnWidth, int btnHeight) {
@@ -926,12 +1017,42 @@ public class MainSettingScreen extends Screen {
             this.addRenderableWidget(addModInModList);
         }
 
-        addToggleButton(ToggleButtonType.MOD_LOADING, buttonX, buttonY + btnHeight + 5, btnWidth, BUTTON_HEIGHT + 3);
+        addToggleButton(ToggleButtonType.MOD_LOAD, buttonX, buttonY + btnHeight + 5, btnWidth, BUTTON_HEIGHT + 3);
 
         addCloseButton(buttonX, buttonY + (btnHeight + 5) * 3 + 10, btnWidth, BUTTON_HEIGHT);
 
         this.addRenderableWidget(searchAllSelectObj);
-        this.addRenderableWidget(modScroll);
+        this.addRenderableWidget(modListScroll);
+    }
+
+    private void setupMobMode(int buttonX, int buttonY, int btnWidth, int btnHeight) {
+        loadSelectMobList();
+
+        searchAllSelectObj.setResponder(searchText -> {
+            currentMobSearchFilter = searchText;
+            searchAllSelectObj.setTextColor(SearchUtils.getSearchTextColor(searchText));
+            updateMobListWithFilter();
+        });
+
+        if(selectedPlayer != null)
+        {
+            addRenderableWidget(Button.builder(
+                    Component.literal("Add Mob"),
+                    button -> {
+                        if (minecraft != null) {
+                            minecraft.setScreen(new AllMobScreen(selectedPlayer, this));
+                        }
+                    }).bounds(buttonX, buttonY, btnWidth, btnHeight).build());
+        }
+
+        addToggleButton(ToggleButtonType.MOB_RIGHT_CLICK, buttonX, buttonY + btnHeight + 5, btnWidth, BUTTON_HEIGHT + 3);
+        addToggleButton(ToggleButtonType.MOB_LEFT_CLICK, buttonX, buttonY + (btnHeight + 5) * 2, btnWidth, BUTTON_HEIGHT + 3);
+
+
+        addCloseButton(buttonX, buttonY + (btnHeight + 5) * 3 + 10, btnWidth, BUTTON_HEIGHT);
+
+        this.addRenderableWidget(searchAllSelectObj);
+        this.addRenderableWidget(mobListScroll);
     }
 
     // ==================== Вспомогательные методы для кнопок ====================
@@ -957,13 +1078,16 @@ public class MainSettingScreen extends Screen {
             ItemButton.active = selectButton != ButtonSelect.ItemSetting;
         }
         if (SpecialPlantingSeedSettingButton != null) {
-            SpecialPlantingSeedSettingButton.active = selectButton != ButtonSelect.PlantingSeed;
+            SpecialPlantingSeedSettingButton.active = selectButton != ButtonSelect.SeedPlanting;
         }
         if (SpecialVillagerTradingSettingButton != null) {
-            SpecialVillagerTradingSettingButton.active = selectButton != ButtonSelect.TradingVillager;
+            SpecialVillagerTradingSettingButton.active = selectButton != ButtonSelect.VillagerTrading;
         }
         if(SpecialModLoadingSettingButton != null) {
-            SpecialModLoadingSettingButton.active = selectButton != ButtonSelect.LoadingMod;
+            SpecialModLoadingSettingButton.active = selectButton != ButtonSelect.ModLoading;
+        }
+        if(SpecialMobSettingButton != null) {
+            SpecialMobSettingButton.active = selectButton != ButtonSelect.MobSetting;
         }
     }
 
@@ -999,8 +1123,8 @@ public class MainSettingScreen extends Screen {
     }
 
     private void renderBackground(GuiGraphics guiGraphics) {
-        guiGraphics.blit(BACKGROUND_TEXTURE, getWidth() / 2 + 75, getHeight() / 2 - 155 / 2, 0, 0, 150, 180, 150, 180);
-        guiGraphics.blit(BACKGROUND_TEXTURE, getWidth() / 2 - 108, getHeight() / 2 - 100, 0, 0, this.backgroundWidth, this.backgroundHeight, this.backgroundWidth, this.backgroundHeight);
+        guiGraphics.blit(BACKGROUND_TEXTURE, getWidth() / 2 + 75, getHeight() / 2 - 155 / 2, 0, 0, toolBackgroundWidth, toolBackgroundHeight, toolBackgroundWidth, toolBackgroundHeight);
+        guiGraphics.blit(BACKGROUND_TEXTURE, getWidth() / 2 - 108, getHeight() / 2 - 100, 0, 0, this.objScrollBackgroundWidth, this.objScrollBackgroundHeight, this.objScrollBackgroundWidth, this.objScrollBackgroundHeight);
     }
 
     private void renderToolsLabel(GuiGraphics guiGraphics) {
@@ -1029,6 +1153,7 @@ public class MainSettingScreen extends Screen {
         currentSeedsSearchFilter = "";
         currentVillagersSearchFilter = "";
         currentModSearchFilter = "";
+        currentMobSearchFilter = "";
         if (searchAllSelectObj != null) {
             searchAllSelectObj.setValue("");
         }
@@ -1112,9 +1237,9 @@ public class MainSettingScreen extends Screen {
             this.name = itemStack.getHoverName().getString();
         }
 
-        Item getItem() { return item; }
-        ItemStack getItemStack() { return itemStack; }
-        String getName() { return name; }
+        public Item getItem() { return item; }
+        public ItemStack getItemStack() { return itemStack; }
+        public String getName() { return name; }
 
         @Override
         public boolean equals(Object obj) {
@@ -1135,21 +1260,15 @@ public class MainSettingScreen extends Screen {
         private final String name;
         private final VillagerProfession profession;
 
-        ProfessionVillagerEntry(String id, String name, VillagerProfession profession) {
-            this.id = id;
-            this.name = name;
-            this.profession = profession;
-        }
-
         ProfessionVillagerEntry(VillagerProfession profession) {
             this.id = BuiltInRegistries.VILLAGER_PROFESSION.getKey(profession).toString();
             this.name = getProfessionDisplayName(profession);
             this.profession = profession;
         }
 
-        String getId() { return id; }
-        String getName() { return name; }
-        VillagerProfession getProfession() { return profession; }
+        public String getId() { return id; }
+        public String getName() { return name; }
+        public VillagerProfession getProfession() { return profession; }
 
         @Override
         public boolean equals(Object obj) {
@@ -1202,6 +1321,35 @@ public class MainSettingScreen extends Screen {
         @Override
         public int hashCode() {
             return Objects.hash(modId);
+        }
+    }
+
+    public static class MobEntry {
+        private final EntityType<?> entityType;
+        private final String mobId;
+        private final String mobName;
+
+        MobEntry(EntityType<?> entityType) {
+            this.entityType = entityType;
+            this.mobId = BuiltInRegistries.ENTITY_TYPE.getKey(entityType).toString();
+            this.mobName = entityType.getDescription().getString();
+        }
+
+        public EntityType<?> getEntityType() { return entityType; }
+        public String getMobId() { return mobId; }
+        public String getMobName() { return mobName; }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) return true;
+            if (obj == null || getClass() != obj.getClass()) return false;
+            MobEntry that = (MobEntry) obj;
+            return Objects.equals(mobId, that.mobId);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(mobId);
         }
     }
 }

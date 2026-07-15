@@ -27,8 +27,8 @@ public class PermissionHelper {
         return SettingsManager.getVillagerSettings(SettingsManager.ALL_PLAYER_UUID);
     }
 
-    private static AnimalSettings getGlobalAnimal() {
-        return SettingsManager.getAnimalSettings(SettingsManager.ALL_PLAYER_UUID);
+    private static MobSettings getGlobalMob() {
+        return SettingsManager.getMobSettings(SettingsManager.ALL_PLAYER_UUID);
     }
 
     private static BlockSettings getPlayerBlock(Player player) {
@@ -47,8 +47,8 @@ public class PermissionHelper {
         return SettingsManager.getVillagerSettings(player.getUUID().toString());
     }
 
-    private static AnimalSettings getPlayerAnimal(Player player) {
-        return SettingsManager.getAnimalSettings(player.getUUID().toString());
+    private static MobSettings getPlayerMob(Player player) {
+        return SettingsManager.getMobSettings(player.getUUID().toString());
     }
 
     // ==================== Блоки ====================
@@ -91,6 +91,48 @@ public class PermissionHelper {
         if (global != null && global.isBlockBreakControlEnabled()) {
             if (global.isBlockExists(blockId)) {
                 return global.canBreakBlock(blockId);
+            }
+        }
+
+        return true;
+    }
+
+    public static boolean canRightClickBlock(Player player , Block block)
+    {
+        BlockSettings personal = getPlayerBlock(player);
+        BlockSettings global = getGlobalBlock();
+        String blockId = BuiltInRegistries.BLOCK.getKey(block).toString();
+
+        if (personal != null && personal.isBlockRightClickControlEnabled()) {
+            if (personal.isBlockExists(blockId)) {
+                return personal.canRightClickBlock(blockId);
+            }
+        }
+
+        if (global != null && global.isBlockRightClickControlEnabled()) {
+            if (global.isBlockExists(blockId)) {
+                return global.canRightClickBlock(blockId);
+            }
+        }
+
+        return true;
+    }
+
+    public static boolean canLeftClickBlock(Player player , Block block)
+    {
+        BlockSettings personal = getPlayerBlock(player);
+        BlockSettings global = getGlobalBlock();
+        String blockId = BuiltInRegistries.BLOCK.getKey(block).toString();
+
+        if (personal != null && personal.isBlockLeftClickControlEnabled()) {
+            if (personal.isBlockExists(blockId)) {
+                return personal.canLeftClickBlock(blockId);
+            }
+        }
+
+        if (global != null && global.isBlockLeftClickControlEnabled()) {
+            if (global.isBlockExists(blockId)) {
+                return global.canLeftClickBlock(blockId);
             }
         }
 
@@ -210,44 +252,44 @@ public class PermissionHelper {
 
     // ==================== Животные ====================
 
-    public static boolean canBreedAnimal(Player player, EntityType<?> entityType) {
+    public static boolean canRightClickMob(Player player, EntityType<?> entityType) {
         if (player == null || entityType == null) return true;
 
-        AnimalSettings personal = getPlayerAnimal(player);
-        AnimalSettings global = getGlobalAnimal();
+        MobSettings personal = getPlayerMob(player);
+        MobSettings global = getGlobalMob();
         String animalId = BuiltInRegistries.ENTITY_TYPE.getKey(entityType).toString();
 
-        if (personal != null && personal.isAnimalBreedControlEnabled()) {
-            if (personal.isAnimalExists(animalId)) {
-                return personal.canBreedAnimal(animalId);
+        if (personal != null && personal.isMobRightClickControlEnabled()) {
+            if (personal.isMobExists(animalId)) {
+                return personal.canRightClickMob(animalId);
             }
         }
 
-        if (global != null && global.isAnimalBreedControlEnabled()) {
-            if (global.isAnimalExists(animalId)) {
-                return global.canBreedAnimal(animalId);
+        if (global != null && global.isMobRightClickControlEnabled()) {
+            if (global.isMobExists(animalId)) {
+                return global.canRightClickMob(animalId);
             }
         }
 
         return true;
     }
 
-    public static boolean canSpawnAnimal(Player player, EntityType<?> entityType) {
+    public static boolean canLeftClickMob(Player player, EntityType<?> entityType) {
         if (player == null || entityType == null) return true;
 
-        AnimalSettings personal = getPlayerAnimal(player);
-        AnimalSettings global = getGlobalAnimal();
+        MobSettings personal = getPlayerMob(player);
+        MobSettings global = getGlobalMob();
         String animalId = BuiltInRegistries.ENTITY_TYPE.getKey(entityType).toString();
 
-        if (personal != null && personal.isAnimalSpawnControlEnabled()) {
-            if (personal.isAnimalExists(animalId)) {
-                return personal.canSpawnAnimal(animalId);
+        if (personal != null && personal.isMobLeftClickControlEnabled()) {
+            if (personal.isMobExists(animalId)) {
+                return personal.canLeftClickMob(animalId);
             }
         }
 
-        if (global != null && global.isAnimalSpawnControlEnabled()) {
-            if (global.isAnimalExists(animalId)) {
-                return global.canSpawnAnimal(animalId);
+        if (global != null && global.isMobLeftClickControlEnabled()) {
+            if (global.isMobExists(animalId)) {
+                return global.canLeftClickMob(animalId);
             }
         }
 

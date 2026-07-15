@@ -1,5 +1,7 @@
-package net.fernyam.chaosmania.gui.custom;
+package net.fernyam.chaosmania.gui.custom.scrolls;
 
+import net.fernyam.chaosmania.gui.custom.MainSettingScreen;
+import net.fernyam.chaosmania.gui.PlayerInfoData;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ObjectSelectionList;
@@ -74,10 +76,12 @@ public class ScrollingPlayerList extends ObjectSelectionList<ScrollingPlayerList
                     ? Component.literal("§6§l[ВСЕМ]")
                     : Component.literal(player.getName());
 
-            guiGraphics.drawString(font, displayName, left + 30, top + (height - 8) / 2, color, false);
+            // Центрирование текста по Y
+            int textY = top + (height - 8) / 2;
+            guiGraphics.drawString(font, displayName, left + 30, textY, color, false);
 
             if (isSelected) {
-                guiGraphics.drawString(font, "✓", left + width - 15, top + (height - 8) / 2, 0x00FF00, false);
+                guiGraphics.drawString(font, "✓", left + width - 15, textY, 0x00FF00, false);
             }
         }
 

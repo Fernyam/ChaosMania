@@ -1,5 +1,6 @@
-package net.fernyam.chaosmania.gui.custom;
+package net.fernyam.chaosmania.gui.custom.base;
 
+import net.fernyam.chaosmania.gui.custom.MainSettingScreen;
 import net.minecraft.client.gui.components.ObjectSelectionList;
 
 import java.util.List;

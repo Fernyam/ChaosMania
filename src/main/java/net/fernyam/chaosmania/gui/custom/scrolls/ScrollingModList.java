@@ -1,6 +1,8 @@
-package net.fernyam.chaosmania.gui.custom;
+package net.fernyam.chaosmania.gui.custom.scrolls;
 
 import net.fernyam.chaosmania.data.settings.SettingsManager;
+import net.fernyam.chaosmania.gui.custom.base.BaseScrollingList;
+import net.fernyam.chaosmania.gui.custom.MainSettingScreen;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
@@ -9,7 +11,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
-import static net.fernyam.chaosmania.data.settings.SettingsManager.*;
+import static net.fernyam.chaosmania.util.SettingsHelper.*;
 
 public class ScrollingModList extends BaseScrollingList<MainSettingScreen.ModEntry, ScrollingModList.ModSlot> {
 
@@ -71,7 +73,6 @@ public class ScrollingModList extends BaseScrollingList<MainSettingScreen.ModEnt
 
         @Override
         public void render(@NotNull GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean hovered, float partialTick) {
-
             var font = parent.getMinecraft().font;
             String modId = entry.getModId();
 
@@ -79,12 +80,15 @@ public class ScrollingModList extends BaseScrollingList<MainSettingScreen.ModEnt
                 guiGraphics.fill(left, top, left + width, top + height, 0x44FFFFFF);
             }
 
+            // Центрирование текста по Y
+            int textY = top + (height - 8) / 2; // 8 - высота строки
 
             if (font.width(modId) > width - 90) {
                 modId = font.plainSubstrByWidth(modId, width - 90) + "...";
             }
-            guiGraphics.drawString(font, modId, left + 28, top + 11, 0xFFFFFF, false);
+            guiGraphics.drawString(font, modId, left + 28, textY, 0xFFFFFF, false);
 
+            // Центрирование кнопок по Y
             int buttonWidth = 20;
             int buttonHeight = 20;
             int buttonX = left + width - buttonWidth - 35;
@@ -97,14 +101,14 @@ public class ScrollingModList extends BaseScrollingList<MainSettingScreen.ModEnt
             deleteModButton.setY(buttonY);
 
             disableLoadButton.render(guiGraphics, mouseX, mouseY, partialTick);
-            deleteModButton.render(guiGraphics , mouseX , mouseY , partialTick);
+            deleteModButton.render(guiGraphics, mouseX, mouseY, partialTick);
         }
 
-        @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            return disableLoadButton.mouseClicked(mouseX, mouseY, button) ||
-                    deleteModButton.mouseClicked(mouseX , mouseY , button);
-        }
+//        @Override
+//        public boolean mouseClicked(double mouseX, double mouseY, int button) {
+//            return disableLoadButton.mouseClicked(mouseX, mouseY, button) ||
+//                    deleteModButton.mouseClicked(mouseX , mouseY , button);
+//        }
 
         @Override
         public @NotNull Component getNarration() {

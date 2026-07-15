@@ -5,11 +5,6 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import net.fernyam.chaosmania.ChaosManiaMod;
 import net.fernyam.chaosmania.data.settings.custom.*;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.npc.VillagerProfession;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.level.block.Block;
 import net.neoforged.fml.loading.FMLPaths;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -21,7 +16,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.stream.Collectors;
 
 public class SettingsManager {
     public static final String ALL_PLAYER_UUID = "00000000-0000-0000-0000-000000000000";
@@ -39,14 +33,14 @@ public class SettingsManager {
     private static final Map<String, ItemSettings> itemCache = new HashMap<>();
     private static final Map<String, SeedSettings> seedCache = new HashMap<>();
     private static final Map<String, VillagerSettings> villagerCache = new HashMap<>();
-    private static final Map<String, AnimalSettings> animalCache = new HashMap<>();
+    private static final Map<String, MobSettings> mobCache = new HashMap<>();
     private static final Map<String, ModSettings> modCache = new HashMap<>();
 
     private static final Path BLOCKS_PATH = CONFIG_DIR.resolve("blocks.json");
     private static final Path ITEMS_PATH = CONFIG_DIR.resolve("items.json");
     private static final Path SEEDS_PATH = CONFIG_DIR.resolve("seeds.json");
     private static final Path VILLAGERS_PATH = CONFIG_DIR.resolve("villagers.json");
-    private static final Path ANIMALS_PATH = CONFIG_DIR.resolve("animals.json");
+    private static final Path MOBS_PATH = CONFIG_DIR.resolve("mob.json");
     private static final Path MODS_PATH = CONFIG_DIR.resolve("mods.json");
 
     private static boolean cacheLoaded = false;
@@ -63,22 +57,20 @@ public class SettingsManager {
             itemCache.clear();
             seedCache.clear();
             villagerCache.clear();
-            animalCache.clear();
+            mobCache.clear();
             modCache.clear();
 
             if (!Files.exists(CONFIG_DIR)) {
                 createDefaultConfig();
             }
 
-            // Загружаем все типы настроек
             loadSettings(BLOCKS_PATH, blockCache, new TypeToken<List<BlockSettings>>() {}.getType());
             loadSettings(ITEMS_PATH, itemCache, new TypeToken<List<ItemSettings>>() {}.getType());
             loadSettings(SEEDS_PATH, seedCache, new TypeToken<List<SeedSettings>>() {}.getType());
             loadSettings(VILLAGERS_PATH, villagerCache, new TypeToken<List<VillagerSettings>>() {}.getType());
-            loadSettings(ANIMALS_PATH, animalCache, new TypeToken<List<AnimalSettings>>() {}.getType());
+            loadSettings(MOBS_PATH, mobCache, new TypeToken<List<MobSettings>>() {}.getType());
             loadSettings(MODS_PATH, modCache, new TypeToken<List<ModSettings>>() {}.getType());
 
-            // Убеждаемся, что глобальные настройки существуют
             ensureGlobalSettings();
 
             cacheLoaded = true;
@@ -138,8 +130,8 @@ public class SettingsManager {
         if (!villagerCache.containsKey(ALL_PLAYER_UUID)) {
             villagerCache.put(ALL_PLAYER_UUID, new VillagerSettings(ALL_PLAYER_UUID, ALL_PLAYER_NAME));
         }
-        if (!animalCache.containsKey(ALL_PLAYER_UUID)) {
-            animalCache.put(ALL_PLAYER_UUID, new AnimalSettings(ALL_PLAYER_UUID, ALL_PLAYER_NAME));
+        if (!mobCache.containsKey(ALL_PLAYER_UUID)) {
+            mobCache.put(ALL_PLAYER_UUID, new MobSettings(ALL_PLAYER_UUID, ALL_PLAYER_NAME));
         }
         if (!modCache.containsKey(ALL_PLAYER_UUID)) {
             modCache.put(ALL_PLAYER_UUID, new ModSettings(ALL_PLAYER_UUID, ALL_PLAYER_NAME));
@@ -166,7 +158,7 @@ public class SettingsManager {
         saveSettings(ITEMS_PATH, itemCache);
         saveSettings(SEEDS_PATH, seedCache);
         saveSettings(VILLAGERS_PATH, villagerCache);
-        saveSettings(ANIMALS_PATH, animalCache);
+        saveSettings(MOBS_PATH, mobCache);
         saveSettings(MODS_PATH, modCache);
     }
 
@@ -223,11 +215,11 @@ public class SettingsManager {
         }
     }
 
-    public static AnimalSettings getAnimalSettings(String uuid) {
+    public static MobSettings getMobSettings(String uuid) {
         loadCache();
         lock.readLock().lock();
         try {
-            return animalCache.getOrDefault(uuid, animalCache.get(ALL_PLAYER_UUID));
+            return mobCache.getOrDefault(uuid, mobCache.get(ALL_PLAYER_UUID));
         } finally {
             lock.readLock().unlock();
         }
@@ -263,8 +255,8 @@ public class SettingsManager {
             if (!villagerCache.containsKey(uuid)) {
                 villagerCache.put(uuid, new VillagerSettings(uuid, name));
             }
-            if (!animalCache.containsKey(uuid)) {
-                animalCache.put(uuid, new AnimalSettings(uuid, name));
+            if (!mobCache.containsKey(uuid)) {
+                mobCache.put(uuid, new MobSettings(uuid, name));
             }
             if (!modCache.containsKey(uuid)) {
                 modCache.put(uuid, new ModSettings(uuid, name));
@@ -287,7 +279,7 @@ public class SettingsManager {
             itemCache.remove(uuid);
             seedCache.remove(uuid);
             villagerCache.remove(uuid);
-            animalCache.remove(uuid);
+            mobCache.remove(uuid);
             modCache.remove(uuid);
 
             saveAllSettings();
@@ -339,11 +331,11 @@ public class SettingsManager {
         }
     }
 
-    public static void addAnimalPlayer(String uuid, AnimalSettings settings) {
+    public static void addMobPlayer(String uuid, MobSettings settings) {
         lock.writeLock().lock();
         try {
-            animalCache.put(uuid, settings);
-            saveSettings(ANIMALS_PATH, animalCache);
+            mobCache.put(uuid, settings);
+            saveSettings(MOBS_PATH, mobCache);
         } finally {
             lock.writeLock().unlock();
         }
@@ -359,7 +351,7 @@ public class SettingsManager {
         }
     }
 
-// ==================== Методы для получения списков игроков ====================
+    // ==================== Методы для получения списков игроков ====================
 
     public static Set<String> getAllBlockPlayers() {
         return new HashSet<>(blockCache.keySet());
@@ -377,24 +369,15 @@ public class SettingsManager {
         return new HashSet<>(villagerCache.keySet());
     }
 
-    public static Set<String> getAllAnimalPlayers() {
-        return new HashSet<>(animalCache.keySet());
+    public static Set<String> getAllMobPlayers() {
+        return new HashSet<>(mobCache.keySet());
     }
 
     public static Set<String> getAllModPlayers() {
         return new HashSet<>(modCache.keySet());
     }
 
-    public static Set<String> getPlayerModIds(String uuid) {
-        ModSettings settings = getModSettings(uuid);
-        if (settings == null) return new HashSet<>();
-
-        return settings.getMods().stream()
-                .map(ModSettings.ModEntry::getIdMod)
-                .collect(Collectors.toSet());
-    }
-
-// ==================== Методы сохранения для конкретных типов ====================
+    // ==================== Методы сохранения для конкретных типов ====================
 
     public static void saveBlockSettings(String uuid) {
         BlockSettings settings = blockCache.get(uuid);
@@ -424,10 +407,10 @@ public class SettingsManager {
         }
     }
 
-    public static void saveAnimalSettings(String uuid) {
-        AnimalSettings settings = animalCache.get(uuid);
+    public static void saveMobSettings(String uuid) {
+        MobSettings settings = mobCache.get(uuid);
         if (settings != null) {
-            saveSettings(ANIMALS_PATH, animalCache);
+            saveSettings(MOBS_PATH, mobCache);
         }
     }
 
@@ -436,428 +419,5 @@ public class SettingsManager {
         if (settings != null) {
             saveSettings(MODS_PATH, modCache);
         }
-    }
-
-
-    // ==================== Методы для блоков ====================
-
-    public static void toggleBlockInList(String uuid, Block block) {
-        if (block == null || uuid == null) return;
-        String id = BuiltInRegistries.BLOCK.getKey(block).toString();
-
-        BlockSettings settings = getBlockSettings(uuid);
-        if (settings == null) return;
-
-        lock.writeLock().lock();
-        try {
-            if (settings.isBlockExists(id)) {
-                settings.removeBlock(id);
-            } else {
-                settings.addBlock(id);
-            }
-            saveSettings(BLOCKS_PATH, blockCache);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    public static void toggleBlockPlace(String uuid, String blockId) {
-        BlockSettings settings = getBlockSettings(uuid);
-        if (settings == null) return;
-
-        lock.writeLock().lock();
-        try {
-            settings.toggleBlockPlace(blockId);
-            saveSettings(BLOCKS_PATH, blockCache);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    public static void toggleBlockBreak(String uuid, String blockId) {
-        BlockSettings settings = getBlockSettings(uuid);
-        if (settings == null) return;
-
-        lock.writeLock().lock();
-        try {
-            settings.toggleBlockBreak(blockId);
-            saveSettings(BLOCKS_PATH, blockCache);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    public static void toggleGlobalBlockPlace(String uuid) {
-        BlockSettings settings = getBlockSettings(uuid);
-        if (settings == null) return;
-
-        lock.writeLock().lock();
-        try {
-            settings.toggleGlobalPlaceBlock();
-            saveSettings(BLOCKS_PATH, blockCache);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    public static void toggleGlobalBlockBreak(String uuid) {
-        BlockSettings settings = getBlockSettings(uuid);
-        if (settings == null) return;
-
-        lock.writeLock().lock();
-        try {
-            settings.toggleGlobalBreakBlock();
-            saveSettings(BLOCKS_PATH, blockCache);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    public static boolean canPlaceBlock(String uuid, String blockId) {
-        BlockSettings settings = getBlockSettings(uuid);
-        return settings != null && settings.canPlaceBlock(blockId);
-    }
-
-    public static boolean canBreakBlock(String uuid, String blockId) {
-        BlockSettings settings = getBlockSettings(uuid);
-        return settings != null && settings.canBreakBlock(blockId);
-    }
-
-    // ==================== Методы для предметов ====================
-
-    public static void toggleItemInList(String uuid, Item item) {
-        if (item == null || uuid == null) return;
-        String id = BuiltInRegistries.ITEM.getKey(item).toString();
-
-        ItemSettings settings = getItemSettings(uuid);
-        if (settings == null) return;
-
-        lock.writeLock().lock();
-        try {
-            if (settings.isItemExists(id)) {
-                settings.removeItem(id);
-            } else {
-                settings.addItem(id);
-            }
-            saveSettings(ITEMS_PATH, itemCache);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    public static void toggleItemDrop(String uuid, String itemId) {
-        ItemSettings settings = getItemSettings(uuid);
-        if (settings == null) return;
-
-        lock.writeLock().lock();
-        try {
-            settings.toggleItemDrop(itemId);
-            saveSettings(ITEMS_PATH, itemCache);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    public static void toggleItemPickup(String uuid, String itemId) {
-        ItemSettings settings = getItemSettings(uuid);
-        if (settings == null) return;
-
-        lock.writeLock().lock();
-        try {
-            settings.toggleItemPickup(itemId);
-            saveSettings(ITEMS_PATH, itemCache);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    public static void toggleGlobalItemDrop(String uuid) {
-        ItemSettings settings = getItemSettings(uuid);
-        if (settings == null) return;
-
-        lock.writeLock().lock();
-        try {
-            settings.toggleGlobalDropItem();
-            saveSettings(ITEMS_PATH, itemCache);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    public static void toggleGlobalItemPickup(String uuid) {
-        ItemSettings settings = getItemSettings(uuid);
-        if (settings == null) return;
-
-        lock.writeLock().lock();
-        try {
-            settings.toggleGlobalPickupItem();
-            saveSettings(ITEMS_PATH, itemCache);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    public static boolean canDropItem(String uuid, String itemId) {
-        ItemSettings settings = getItemSettings(uuid);
-        return settings != null && settings.canDropItem(itemId);
-    }
-
-    public static boolean canPickupItem(String uuid, String itemId) {
-        ItemSettings settings = getItemSettings(uuid);
-        return settings != null && settings.canPickupItem(itemId);
-    }
-
-    // ==================== Методы для семян ====================
-
-    public static void toggleSeedInList(String uuid, Item seed) {
-        if (seed == null || uuid == null) return;
-        String id = BuiltInRegistries.ITEM.getKey(seed).toString();
-
-        SeedSettings settings = getSeedSettings(uuid);
-        if (settings == null) return;
-
-        lock.writeLock().lock();
-        try {
-            if (settings.isSeedExists(id)) {
-                settings.removeSeed(id);
-            } else {
-                settings.addSeed(id);
-            }
-            saveSettings(SEEDS_PATH, seedCache);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    public static void toggleSeedPlanting(String uuid, String seedId) {
-        SeedSettings settings = getSeedSettings(uuid);
-        if (settings == null) return;
-
-        lock.writeLock().lock();
-        try {
-            settings.toggleSeedPlant(seedId);
-            saveSettings(SEEDS_PATH, seedCache);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    public static void toggleGlobalSeedPlanting(String uuid) {
-        SeedSettings settings = getSeedSettings(uuid);
-        if (settings == null) return;
-
-        lock.writeLock().lock();
-        try {
-            settings.toggleGlobalPlantSeed();
-            saveSettings(SEEDS_PATH, seedCache);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    public static boolean canPlantSeed(String uuid, String seedId) {
-        SeedSettings settings = getSeedSettings(uuid);
-        return settings != null && settings.canPlantSeed(seedId);
-    }
-
-    // ==================== Методы для жителей ====================
-
-    public static void toggleVillagerInList(String uuid, String professionId) {
-        if (professionId == null || uuid == null) return;
-
-        VillagerSettings settings = getVillagerSettings(uuid);
-        if (settings == null) return;
-
-        lock.writeLock().lock();
-        try {
-            if (settings.isProfessionExists(professionId)) {
-                settings.removeProfession(professionId);
-            } else {
-                settings.addProfession(professionId);
-            }
-            saveSettings(VILLAGERS_PATH, villagerCache);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    public static void toggleVillagerTrade(String uuid, String professionId) {
-        VillagerSettings settings = getVillagerSettings(uuid);
-        if (settings == null) return;
-
-        lock.writeLock().lock();
-        try {
-            settings.toggleProfessionTrade(professionId);
-            saveSettings(VILLAGERS_PATH, villagerCache);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    public static void toggleGlobalVillagerTrade(String uuid) {
-        VillagerSettings settings = getVillagerSettings(uuid);
-        if (settings == null) return;
-
-        lock.writeLock().lock();
-        try {
-            settings.toggleGlobalTradeVillager();
-            saveSettings(VILLAGERS_PATH, villagerCache);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    public static void toggleGlobalWanderingTraderTrade(String uuid) {
-        VillagerSettings settings = getVillagerSettings(uuid);
-        if (settings == null) return;
-
-        lock.writeLock().lock();
-        try {
-            settings.toggleGlobalTradeWanderingTrader();
-            saveSettings(VILLAGERS_PATH, villagerCache);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    public static boolean canTradeWithVillager(String uuid, String professionId) {
-        VillagerSettings settings = getVillagerSettings(uuid);
-        return settings != null && settings.canTradeWithVillager(professionId);
-    }
-
-    // ==================== Методы для животных ====================
-
-    public static void toggleAnimalInList(String uuid, EntityType<?> entityType) {
-        if (entityType == null || uuid == null) return;
-        String id = BuiltInRegistries.ENTITY_TYPE.getKey(entityType).toString();
-
-        AnimalSettings settings = getAnimalSettings(uuid);
-        if (settings == null) return;
-
-        lock.writeLock().lock();
-        try {
-            if (settings.isAnimalExists(id)) {
-                settings.removeAnimal(id);
-            } else {
-                settings.addAnimal(id);
-            }
-            saveSettings(ANIMALS_PATH, animalCache);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    public static void toggleAnimalBreed(String uuid, String animalId) {
-        AnimalSettings settings = getAnimalSettings(uuid);
-        if (settings == null) return;
-
-        lock.writeLock().lock();
-        try {
-            settings.toggleAnimalBreed(animalId);
-            saveSettings(ANIMALS_PATH, animalCache);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    public static void toggleAnimalSpawn(String uuid, String animalId) {
-        AnimalSettings settings = getAnimalSettings(uuid);
-        if (settings == null) return;
-
-        lock.writeLock().lock();
-        try {
-            settings.toggleAnimalSpawn(animalId);
-            saveSettings(ANIMALS_PATH, animalCache);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    public static void toggleGlobalAnimalBreed(String uuid) {
-        AnimalSettings settings = getAnimalSettings(uuid);
-        if (settings == null) return;
-
-        lock.writeLock().lock();
-        try {
-            settings.toggleGlobalBreedAnimal();
-            saveSettings(ANIMALS_PATH, animalCache);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    public static void toggleGlobalAnimalSpawn(String uuid) {
-        AnimalSettings settings = getAnimalSettings(uuid);
-        if (settings == null) return;
-
-        lock.writeLock().lock();
-        try {
-            settings.toggleGlobalSpawnAnimal();
-            saveSettings(ANIMALS_PATH, animalCache);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    public static boolean canBreedAnimal(String uuid, String animalId) {
-        AnimalSettings settings = getAnimalSettings(uuid);
-        return settings != null && settings.canBreedAnimal(animalId);
-    }
-
-    public static boolean canSpawnAnimal(String uuid, String animalId) {
-        AnimalSettings settings = getAnimalSettings(uuid);
-        return settings != null && settings.canSpawnAnimal(animalId);
-    }
-
-    // ==================== Методы для модов ====================
-
-    public static void toggleModInList(String uuid, String modId) {
-        if (modId == null || uuid == null) return;
-
-        ModSettings settings = getModSettings(uuid);
-        if (settings == null) return;
-
-        lock.writeLock().lock();
-        try {
-            if (settings.isModExists(modId)) {
-                settings.removeMod(modId);
-            } else {
-                settings.addMod(modId);
-            }
-            saveSettings(MODS_PATH, modCache);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    public static void toggleModLoad(String uuid, String modId) {
-        ModSettings settings = getModSettings(uuid);
-        if (settings == null) return;
-
-        lock.writeLock().lock();
-        try {
-            settings.toggleModLoad(modId);
-            saveSettings(MODS_PATH, modCache);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    public static void toggleGlobalModLoad(String uuid) {
-        ModSettings settings = getModSettings(uuid);
-        if (settings == null) return;
-
-        lock.writeLock().lock();
-        try {
-            settings.toggleGlobalLoadMod();
-            saveSettings(MODS_PATH, modCache);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    public static boolean canLoadMod(String uuid, String modId) {
-        ModSettings settings = getModSettings(uuid);
-        return settings != null && settings.canLoadMod(modId);
     }
 }

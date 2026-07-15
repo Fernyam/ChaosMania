@@ -3,8 +3,10 @@ package net.fernyam.chaosmania;
 import net.fernyam.chaosmania.client.ClientInputHandler;
 import net.fernyam.chaosmania.client.KeyBindings;
 import net.fernyam.chaosmania.data.settings.SettingsManager;
+import net.fernyam.chaosmania.event.MobClickEvent;
 import net.fernyam.chaosmania.event.ModLoadEvent;
 import net.fernyam.chaosmania.event.blockEvent.BlockBreakEvent;
+import net.fernyam.chaosmania.event.blockEvent.BlockClickEvent;
 import net.fernyam.chaosmania.event.blockEvent.BlockPlaceEvent;
 import net.fernyam.chaosmania.event.itemEvent.ItemDropsEvent;
 import net.fernyam.chaosmania.event.itemEvent.ItemPickupEvent;
@@ -43,6 +45,12 @@ public class ChaosManiaMod {
         NeoForge.EVENT_BUS.addListener(ItemDropsEvent::onItemToss);
         NeoForge.EVENT_BUS.addListener(BlockPlaceEvent::onBlockPlace);
         NeoForge.EVENT_BUS.addListener(BlockBreakEvent::onBlockBreak);
+        NeoForge.EVENT_BUS.addListener(BlockClickEvent::RightClickBlock);
+        NeoForge.EVENT_BUS.addListener(BlockClickEvent::LeftClickBlock);
+        NeoForge.EVENT_BUS.addListener(MobClickEvent::onRightClickOnMobOne);
+        NeoForge.EVENT_BUS.addListener(MobClickEvent::onLeftClickOnMob);
+        NeoForge.EVENT_BUS.addListener(MobClickEvent::onRightClickOnMobTwo);
+
         NeoForge.EVENT_BUS.addListener(this::onPlayerLoggedIn);
         NeoForge.EVENT_BUS.addListener(this::onEntityJoinLevel);
 
